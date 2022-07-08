@@ -2,6 +2,7 @@ package tally
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,12 +14,36 @@ import (
 
 // Package is a package with score information
 type Package struct {
-	System         string
-	Name           string
-	Version        string
-	RepositoryName string
-	Score          float64
-	Date           civil.Date
+	System         string     `json:"system"`
+	Name           string     `json:"name"`
+	Version        string     `json:"version"`
+	RepositoryName string     `json:"repository,omitempty"`
+	Score          float64    `json:"score,omitempty"`
+	Date           civil.Date `json:"date,omitempty"`
+}
+
+// MarshalJSON implements json.Marshaler. It marshals the date field into an
+// empty string rather than the default zero value of civil.Date.
+func (p *Package) MarshalJSON() ([]byte, error) {
+	alias := struct {
+		System         string  `json:"system"`
+		Name           string  `json:"name"`
+		Version        string  `json:"version"`
+		RepositoryName string  `json:"repository,omitempty"`
+		Score          float64 `json:"score,omitempty"`
+		Date           string  `json:"date,omitempty"`
+	}{
+		System:         p.System,
+		Name:           p.Name,
+		Version:        p.Version,
+		RepositoryName: p.RepositoryName,
+		Score:          p.Score,
+	}
+	if !p.Date.IsZero() {
+		alias.Date = p.Date.String()
+	}
+
+	return json.Marshal(&alias)
 }
 
 // ScorePackages enriches the provided list of packages with scores taken from

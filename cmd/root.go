@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"text/tabwriter"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/ribbybibby/tally/internal/tally"
@@ -15,6 +14,7 @@ import (
 type rootOptions struct {
 	All       bool
 	Format    string
+	Output    string
 	ProjectID string
 }
 
@@ -56,19 +56,12 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		tw := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		defer tw.Flush()
-		fmt.Fprintf(tw, "SYSTEM\tPACKAGE\tVERSION\tREPOSITORY\tSCORE\tDATE\n")
-
-		for _, pkg := range pkgs {
-			// Skip packages without a score, unless -a is set
-			if pkg.RepositoryName == "" && !ro.All {
-				continue
-			}
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%.1f\t%s\n", pkg.System, pkg.Name, pkg.Version, pkg.RepositoryName, pkg.Score, pkg.Date)
-		}
-
-		return nil
+		return tally.WriteOutput(
+			os.Stdout,
+			pkgs,
+			tally.WithOutput(tally.Output(ro.Output)),
+			tally.WithOutputAll(ro.All),
+		)
 	},
 }
 
@@ -84,4 +77,5 @@ func init() {
 	rootCmd.MarkFlagRequired("project-id")
 	rootCmd.Flags().StringVarP(&ro.Format, "format", "f", string(tally.BOMFormatCycloneDXJSON), fmt.Sprintf("BOM format, options=%s", tally.BOMFormats))
 	rootCmd.Flags().BoolVarP(&ro.All, "all", "a", false, "print all packages, even those without a scorecard score")
+	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", tally.Outputs))
 }
