@@ -50,25 +50,48 @@ func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]Packa
 	if cdxBOM.Components == nil {
 		return pkgs, nil
 	}
-	for _, component := range *cdxBOM.Components {
+	if err := walkCycloneDXComponents(*cdxBOM.Components, func(component cyclonedx.Component) error {
 		if component.PackageURL == "" {
-			continue
+			return nil
 		}
 		purl, err := packageurl.FromString(component.PackageURL)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		pkg, err := packageFromPurl(purl)
 		if errors.Is(err, ErrUnsupportedPackageType) {
-			continue
+			return nil
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
-		pkgs = append(pkgs, pkg)
+		if !containsPackage(pkgs, pkg) {
+			pkgs = append(pkgs, pkg)
+		}
+
+		return nil
+
+	}); err != nil {
+		return nil, err
 	}
 
 	return pkgs, nil
+}
+
+func walkCycloneDXComponents(components []cyclonedx.Component, fn func(cyclonedx.Component) error) error {
+	for _, component := range components {
+		if err := fn(component); err != nil {
+			return err
+		}
+		if component.Components == nil {
+			continue
+		}
+		if err := walkCycloneDXComponents(*component.Components, fn); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type syftJSON struct {
