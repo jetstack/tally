@@ -34,19 +34,14 @@ func ScorePackages(ctx context.Context, bq *bigquery.Client, pkgs []Package) ([]
 	// more efficient
 	q := bq.Query(fmt.Sprintf(`
 SELECT system, name, version, repo.name as repositoryname, score, date
-FROM `+"`openssf.scorecardcron.scorecard-v2`"+` AS t1
+FROM `+"`openssf.scorecardcron.scorecard-v2_latest`"+` AS scorecard
 INNER JOIN (
-  SELECT DISTINCT concat('github.com/', ProjectName) as reponame, system, name, version
+  SELECT DISTINCT concat('github.com/', projectname) as reponame, system, name, version
   FROM `+"`bigquery-public-data.deps_dev_v1.PackageVersionToProject`"+` 
   WHERE projecttype = 'GITHUB' 
   AND (system,name,version) in (%s)
-) t2
-ON t1.repo.name = t2.reponame
-WHERE NOT EXISTS (
-  SELECT *
-  FROM `+"`openssf.scorecardcron.scorecard-v2`"+` AS t3
-  WHERE t3.repo.name = t1.repo.name AND t3.date > t1.date
-);
+) depsdev
+ON scorecard.repo.name = depsdev.reponame;
 `,
 		strings.Join(pkgQ, ","),
 	))
