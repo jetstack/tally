@@ -28,6 +28,14 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
+		out, err := tally.NewOutput(
+			tally.WithOutputFormat(tally.OutputFormat(ro.Output)),
+			tally.WithOutputAll(ro.All),
+		)
+		if err != nil {
+			return err
+		}
+
 		bq, err := bigquery.NewClient(ctx, ro.ProjectID)
 		if err != nil {
 			return err
@@ -56,12 +64,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		return tally.WriteOutput(
-			os.Stdout,
-			pkgs,
-			tally.WithOutput(tally.Output(ro.Output)),
-			tally.WithOutputAll(ro.All),
-		)
+		return out.WritePackages(os.Stdout, pkgs)
 	},
 }
 
@@ -77,5 +80,5 @@ func init() {
 	rootCmd.MarkFlagRequired("project-id")
 	rootCmd.Flags().StringVarP(&ro.Format, "format", "f", string(tally.BOMFormatCycloneDXJSON), fmt.Sprintf("BOM format, options=%s", tally.BOMFormats))
 	rootCmd.Flags().BoolVarP(&ro.All, "all", "a", false, "print all packages, even those without a scorecard score")
-	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", tally.Outputs))
+	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", tally.OutputFormats))
 }

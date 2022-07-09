@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 
 	"cloud.google.com/go/bigquery"
@@ -98,11 +97,6 @@ ON scorecard.repo.name = depsdev.reponame;
 
 		sPkgs = append(sPkgs, pkg)
 	}
-
-	// Sort the packages by score
-	sort.Slice(sPkgs, func(i, j int) bool {
-		return sPkgs[i].Score > sPkgs[j].Score
-	})
 
 	return sPkgs, nil
 }

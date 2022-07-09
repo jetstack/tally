@@ -10,20 +10,20 @@ Generate an SBOM and then scan it with `tally`:
 ```
 $ syft prom/prometheus -o cyclonedx-json > bom.json
 $ tally -p my-gcp-project-id bom.json
-Found 281 supported packages in BOM
+Found 150 supported packages in BOM
 Retrieving scores from BigQuery...
-SYSTEM PACKAGE                                           VERSION  SCORE
-GO     cloud.google.com/go/compute                       v1.3.0   9.3
-GO     github.com/imdario/mergo                          v0.3.12  9.1
-GO     github.com/googleapis/gax-go/v2                   v2.1.1   8.9
-GO     k8s.io/api                                        v0.22.7  8.2
-GO     github.com/azure/go-autorest/autorest/validation  v0.3.1   8.0
-GO     github.com/azure/go-autorest/autorest/adal        v0.9.18  8.0
-GO     github.com/azure/go-autorest/logger               v0.2.1   8.0
+REPOSITORY                                         SCORE
+github.com/googleapis/google-cloud-go              9.3
+github.com/imdario/mergo                           9.1
+github.com/googleapis/gax-go                       8.9
+github.com/kubernetes/api                          8.2
+github.com/azure/go-autorest                       8.0
+github.com/googleapis/google-api-go-client         7.9
 ...
 ```
 
 You can pipe the BOM directly to `tally` as well:
+
 ```
 $ syft prom/prometheus -o cyclonedx-json | tally -p my-gcp-project -
 ```

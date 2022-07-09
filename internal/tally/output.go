@@ -5,58 +5,71 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"text/tabwriter"
 )
 
-// ErrUnsupportedOutput is returned when an output is requested by string that
+// ErrUnsupportedOutputFormat is returned when an output is requested by string that
 // this package doesn't implement.
-var ErrUnsupportedOutput = errors.New("unsupported output")
+var ErrUnsupportedOutputFormat = errors.New("unsupported output")
 
-// Output is a supported output option
-type Output string
+// OutputFormat is a supported output option
+type OutputFormat string
 
 const (
-	// OutputShort prints the package system, name, version and score in
-	// tab-separated columns.
-	OutputShort Output = "short"
+	// OutputFormatShort prints the repositories and their scores.
+	OutputFormatShort OutputFormat = "short"
 
-	// OutputWide prints the full range of information in tab-separated
-	// columns.
-	OutputWide Output = "wide"
+	// OutputFormatWide prints the package version information, as well as
+	// the repositories and their scores.
+	OutputFormatWide OutputFormat = "wide"
 
-	// OutputJSON prints the list of packages in JSON format.
-	OutputJSON Output = "json"
+	// OutputFormatJSON prints the list of packages in JSON format.
+	OutputFormatJSON OutputFormat = "json"
 )
 
-// Outputs are the supported output options
-var Outputs = []Output{
-	OutputShort,
-	OutputWide,
-	OutputJSON,
+// OutputFormats are the supported output options
+var OutputFormats = []OutputFormat{
+	OutputFormatShort,
+	OutputFormatWide,
+	OutputFormatJSON,
 }
 
-type outputWriter func(io.Writer, []Package) error
-
-var outputWriterMap = map[Output]outputWriter{
-	OutputShort: writeShortOutput,
-	OutputWide:  writeWideOutput,
-	OutputJSON:  writeJSONOutput,
+// Output writes output for tally
+type Output interface {
+	WritePackages(io.Writer, []Package) error
 }
 
-// WriteOutput writes packages to the provided io.Writer. The output can be
-// configured by providing OutputOptions.
-func WriteOutput(w io.Writer, pkgs []Package, opts ...OutputOption) error {
-	o := &outputOptions{
-		Output: OutputShort,
+// NewOutput returns a new output, configured by the provided options
+func NewOutput(opts ...OutputOption) (Output, error) {
+	o := &output{
+		writer: writeShortOutput,
 	}
 	for _, opt := range opts {
-		opt(o)
+		if err := opt(o); err != nil {
+			return nil, err
+		}
 	}
 
-	if !o.All {
+	return o, nil
+}
+
+// OutputOption is a functional option that configures the behaviour of output
+type OutputOption func(*output) error
+
+type output struct {
+	all    bool
+	writer outputWriter
+}
+
+// WritePackages writes the provided packages to the given io.Writer in the
+// configured output format
+func (o *output) WritePackages(w io.Writer, pkgs []Package) error {
+	// Unless -a is configured, ignore packages without a score
+	if !o.all {
 		p := []Package{}
 		for _, pkg := range pkgs {
-			if pkg.RepositoryName == "" {
+			if pkg.Score == 0 {
 				continue
 			}
 			p = append(p, pkg)
@@ -64,48 +77,65 @@ func WriteOutput(w io.Writer, pkgs []Package, opts ...OutputOption) error {
 		pkgs = p
 	}
 
-	out, ok := outputWriterMap[o.Output]
-	if !ok {
-		return fmt.Errorf("%s: %w", o.Output, ErrUnsupportedOutput)
-	}
+	// Sort the packages by score in the output
+	sort.Slice(pkgs, func(i, j int) bool {
+		return pkgs[i].Score > pkgs[j].Score
+	})
 
-	return out(w, pkgs)
+	return o.writer(w, pkgs)
 }
 
-// OutputOption is a functional option that configures the behaviour of outputs
-type OutputOption func(*outputOptions)
+// WithOutputFormat is a functional option that configures the format of the
+// output
+func WithOutputFormat(format OutputFormat) OutputOption {
+	return func(o *output) error {
+		writer, ok := outputWriterMap[format]
+		if !ok {
+			return fmt.Errorf("%s: %w", format, ErrUnsupportedOutputFormat)
+		}
+		o.writer = writer
 
-type outputOptions struct {
-	All    bool
-	Output Output
-}
-
-// WithOutput is a functional option that configures the kind of output
-func WithOutput(output Output) OutputOption {
-	return func(o *outputOptions) {
-		o.Output = output
+		return nil
 	}
 }
 
 // WithOutputAll is a functional option that configures outputs to return all
 // packages, even if they don't have a scorecard score
 func WithOutputAll(all bool) OutputOption {
-	return func(o *outputOptions) {
-		o.All = all
+	return func(o *output) error {
+		o.all = all
+
+		return nil
 	}
+}
+
+type outputWriter func(io.Writer, []Package) error
+
+var outputWriterMap = map[OutputFormat]outputWriter{
+	OutputFormatShort: writeShortOutput,
+	OutputFormatWide:  writeWideOutput,
+	OutputFormatJSON:  writeJSONOutput,
 }
 
 func writeShortOutput(w io.Writer, pkgs []Package) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 	defer tw.Flush()
-	fmt.Fprintf(tw, "SYSTEM\tPACKAGE\tVERSION\tSCORE\n")
+	fmt.Fprintf(tw, "REPOSITORY\tSCORE\n")
 
+	printed := map[string]struct{}{}
 	for _, pkg := range pkgs {
-		if pkg.Score > 0 {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.System, pkg.Name, pkg.Version, pkg.Score)
-		} else {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", pkg.System, pkg.Name, pkg.Version, " ")
+		if pkg.RepositoryName == "" {
+			continue
 		}
+		if _, ok := printed[pkg.RepositoryName]; ok {
+			continue
+		}
+		if pkg.Score > 0 {
+			fmt.Fprintf(tw, "%s\t%.1f\n", pkg.RepositoryName, pkg.Score)
+		} else {
+			fmt.Fprintf(tw, "%s\t%s\n", pkg.RepositoryName, " ")
+		}
+		printed[pkg.RepositoryName] = struct{}{}
 	}
 
 	return nil
