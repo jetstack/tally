@@ -84,7 +84,7 @@ the date the score was generated:
 
 ```
 SYSTEM PACKAGE                     VERSION REPOSITORY                            SCORE DATE
-GO     cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3   2022-06-27
+go     cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3   2022-06-27
 ```
 
 The `json` output will print the full output in JSON format:
@@ -92,7 +92,7 @@ The `json` output will print the full output in JSON format:
 ```
 [
   {
-    "system": "GO",
+    "type": "go",
     "name": "cloud.google.com/go/compute",
     "version": "v1.3.0",
     "repository": "github.com/googleapis/google-cloud-go",

@@ -18,26 +18,26 @@ import (
 
 // Package is a package with score information
 type Package struct {
-	System         string     `json:"system"`
-	Name           string     `json:"name"`
-	Version        string     `json:"version"`
-	RepositoryName string     `json:"repository,omitempty"`
-	Score          float64    `json:"score,omitempty"`
-	Date           civil.Date `json:"date,omitempty"`
+	Type           PackageType `json:"type"`
+	Name           string      `json:"name"`
+	Version        string      `json:"version"`
+	RepositoryName string      `json:"repository,omitempty"`
+	Score          float64     `json:"score,omitempty"`
+	Date           civil.Date  `json:"date,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler. It marshals the date field into an
 // empty string rather than the default zero value of civil.Date.
 func (p *Package) MarshalJSON() ([]byte, error) {
 	alias := struct {
-		System         string  `json:"system"`
-		Name           string  `json:"name"`
-		Version        string  `json:"version"`
-		RepositoryName string  `json:"repository,omitempty"`
-		Score          float64 `json:"score,omitempty"`
-		Date           string  `json:"date,omitempty"`
+		Type           PackageType `json:"type"`
+		Name           string      `json:"name"`
+		Version        string      `json:"version"`
+		RepositoryName string      `json:"repository,omitempty"`
+		Score          float64     `json:"score,omitempty"`
+		Date           string      `json:"date,omitempty"`
 	}{
-		System:         p.System,
+		Type:           p.Type,
 		Name:           p.Name,
 		Version:        p.Version,
 		RepositoryName: p.RepositoryName,
@@ -67,15 +67,22 @@ func (p *packages) List() []Package {
 	return p.pkgs
 }
 
+type depsDevResponse struct {
+	System         string
+	Name           string
+	Version        string
+	RepositoryName string
+}
+
 // AddRepositoriesFromDepsDev encriches the packages with repository
 // information taken from the deps.dev dataset.
 func (p *packages) AddRepositoriesFromDepsDev(ctx context.Context, bq *bigquery.Client) error {
 	var pkgQ []string
 	for _, pkg := range p.pkgs {
-		if pkg.RepositoryName != "" {
+		if pkg.RepositoryName != "" && pkg.Type.DepsDevSystem() != "" {
 			continue
 		}
-		pkgQ = append(pkgQ, fmt.Sprintf("('%s', '%s', '%s')", pkg.System, pkg.Name, pkg.Version))
+		pkgQ = append(pkgQ, fmt.Sprintf("('%s', '%s', '%s')", pkg.Type.DepsDevSystem(), pkg.Name, pkg.Version))
 	}
 
 	q := bq.Query(fmt.Sprintf(`
@@ -92,10 +99,10 @@ AND (system,name,version) in (%s);
 		return err
 	}
 
-	var sPkgs []Package
+	var resps []depsDevResponse
 	for {
-		var sPkg Package
-		err := it.Next(&sPkg)
+		var resp depsDevResponse
+		err := it.Next(&resp)
 		if err == iterator.Done {
 			break
 		}
@@ -103,19 +110,25 @@ AND (system,name,version) in (%s);
 			return err
 		}
 
-		sPkgs = append(sPkgs, sPkg)
+		resps = append(resps, resp)
 	}
 
 	// Include the packages that don't have a repository
 	for i, pkg := range p.pkgs {
-		for _, sPkg := range sPkgs {
-			if isPackage(pkg, sPkg) {
-				p.pkgs[i].RepositoryName = sPkg.RepositoryName
+		for _, resp := range resps {
+			if pkg.Type.DepsDevSystem() == resp.System && pkg.Name == resp.Name && pkg.Version == resp.Version {
+				p.pkgs[i].RepositoryName = resp.RepositoryName
 			}
 		}
 	}
 
 	return nil
+}
+
+type scorecardResponse struct {
+	RepositoryName string
+	Score          float64
+	Date           civil.Date
 }
 
 // AddScoresFromScorecardLatest encriches the provided packages with scores from
@@ -142,10 +155,10 @@ WHERE repo.name IN ('%s');
 		return err
 	}
 
-	var sPkgs []Package
+	var resps []scorecardResponse
 	for {
-		var sPkg Package
-		err := it.Next(&sPkg)
+		var resp scorecardResponse
+		err := it.Next(&resp)
 		if err == iterator.Done {
 			break
 		}
@@ -153,15 +166,15 @@ WHERE repo.name IN ('%s');
 			return err
 		}
 
-		sPkgs = append(sPkgs, sPkg)
+		resps = append(resps, resp)
 	}
 
 	// Add scores to the list of packages
-	for _, sPkg := range sPkgs {
+	for _, resp := range resps {
 		for i, pkg := range p.pkgs {
-			if pkg.RepositoryName == sPkg.RepositoryName {
-				p.pkgs[i].Score = sPkg.Score
-				p.pkgs[i].Date = sPkg.Date
+			if pkg.RepositoryName == resp.RepositoryName {
+				p.pkgs[i].Score = resp.Score
+				p.pkgs[i].Date = resp.Date
 			}
 		}
 	}
@@ -235,7 +248,7 @@ func generateScoreForRepository(ctx context.Context, repository string) (float64
 }
 
 func isPackage(a, b Package) bool {
-	return a.System == b.System && a.Name == b.Name && a.Version == b.Version
+	return a.Type == b.Type && a.Name == b.Name && a.Version == b.Version
 }
 
 func containsPackage(pkgs []Package, pkg Package) bool {

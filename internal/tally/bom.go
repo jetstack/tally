@@ -143,7 +143,7 @@ func packageFromPurl(purl packageurl.PackageURL) (Package, error) {
 			name = purl.Namespace + "/" + name
 		}
 		return Package{
-			System:  "NPM",
+			Type:    PackageTypeNPM,
 			Name:    name,
 			Version: purl.Version,
 		}, nil
@@ -160,26 +160,26 @@ func packageFromPurl(purl packageurl.PackageURL) (Package, error) {
 			}
 		}
 		return Package{
-			System:         "GO",
+			Type:           PackageTypeGo,
 			Name:           name,
 			Version:        purl.Version,
 			RepositoryName: repo,
 		}, nil
 	case packageurl.TypeMaven:
 		return Package{
-			System:  "MAVEN",
+			Type:    PackageTypeMaven,
 			Name:    strings.Join([]string{purl.Namespace, purl.Name}, ":"),
 			Version: purl.Version,
 		}, nil
 	case packageurl.TypePyPi:
 		return Package{
-			System:  "PYPI",
+			Type:    PackageTypePyPI,
 			Name:    purl.Name,
 			Version: purl.Version,
 		}, nil
 	case "cargo":
 		return Package{
-			System:  "CARGO",
+			Type:    PackageTypeCargo,
 			Name:    purl.Name,
 			Version: purl.Version,
 		}, nil
