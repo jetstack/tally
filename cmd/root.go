@@ -62,12 +62,11 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs))
+		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs.List()))
 
 		// Get repositories from deps.dev
 		fmt.Fprintf(os.Stderr, "Fetching repository information from deps.dev dataset...\n")
-		pkgs, err = tally.AddRepositoriesFromDepsDev(ctx, bq, pkgs)
-		if err != nil {
+		if err := pkgs.AddRepositoriesFromDepsDev(ctx, bq); err != nil {
 			return err
 		}
 
@@ -76,16 +75,14 @@ var rootCmd = &cobra.Command{
 
 		// Integrate scores from the OpenSSF scorecard dataset
 		fmt.Fprintf(os.Stderr, "Fetching scores from OpenSSF scorecard dataset...\n")
-		pkgs, err = tally.AddScoresFromScorecardLatest(ctx, bq, pkgs)
-		if err != nil {
+		if err := pkgs.AddScoresFromScorecardLatest(ctx, bq); err != nil {
 			return err
 		}
 
 		// Generate missing scores
 		if ro.GenerateScores {
 			fmt.Fprintf(os.Stderr, "Generating missing scores...\n")
-			pkgs, err = tally.GenerateScoresForPackages(ctx, pkgs)
-			if err != nil {
+			if err := pkgs.GenerateScores(ctx); err != nil {
 				return err
 			}
 		}

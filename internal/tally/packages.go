@@ -50,11 +50,28 @@ func (p *Package) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&alias)
 }
 
-// AddRepositoriesFromDepsDev encriches the provided packages with repository
+// Packages is a collection of packages
+type Packages interface {
+	AddRepositoriesFromDepsDev(context.Context, *bigquery.Client) error
+	AddScoresFromScorecardLatest(context.Context, *bigquery.Client) error
+	GenerateScores(context.Context) error
+	List() []Package
+}
+
+type packages struct {
+	pkgs []Package
+}
+
+// List returns all the packages
+func (p *packages) List() []Package {
+	return p.pkgs
+}
+
+// AddRepositoriesFromDepsDev encriches the packages with repository
 // information taken from the deps.dev dataset.
-func AddRepositoriesFromDepsDev(ctx context.Context, bq *bigquery.Client, pkgs []Package) ([]Package, error) {
+func (p *packages) AddRepositoriesFromDepsDev(ctx context.Context, bq *bigquery.Client) error {
 	var pkgQ []string
-	for _, pkg := range pkgs {
+	for _, pkg := range p.pkgs {
 		if pkg.RepositoryName != "" {
 			continue
 		}
@@ -72,7 +89,7 @@ AND (system,name,version) in (%s);
 
 	it, err := q.Read(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var sPkgs []Package
@@ -83,29 +100,29 @@ AND (system,name,version) in (%s);
 			break
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		sPkgs = append(sPkgs, sPkg)
 	}
 
 	// Include the packages that don't have a repository
-	for i, pkg := range pkgs {
+	for i, pkg := range p.pkgs {
 		for _, sPkg := range sPkgs {
 			if isPackage(pkg, sPkg) {
-				pkgs[i].RepositoryName = sPkg.RepositoryName
+				p.pkgs[i].RepositoryName = sPkg.RepositoryName
 			}
 		}
 	}
 
-	return pkgs, nil
+	return nil
 }
 
 // AddScoresFromScorecardLatest encriches the provided packages with scores from
 // the latest scorecard dataset.
-func AddScoresFromScorecardLatest(ctx context.Context, bq *bigquery.Client, pkgs []Package) ([]Package, error) {
+func (p *packages) AddScoresFromScorecardLatest(ctx context.Context, bq *bigquery.Client) error {
 	var repositories []string
-	for _, pkg := range pkgs {
+	for _, pkg := range p.pkgs {
 		if pkg.RepositoryName == "" {
 			continue
 		}
@@ -122,7 +139,7 @@ WHERE repo.name IN ('%s');
 
 	it, err := q.Read(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var sPkgs []Package
@@ -133,7 +150,7 @@ WHERE repo.name IN ('%s');
 			break
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		sPkgs = append(sPkgs, sPkg)
@@ -141,22 +158,22 @@ WHERE repo.name IN ('%s');
 
 	// Add scores to the list of packages
 	for _, sPkg := range sPkgs {
-		for i, pkg := range pkgs {
+		for i, pkg := range p.pkgs {
 			if pkg.RepositoryName == sPkg.RepositoryName {
-				pkgs[i].Score = sPkg.Score
-				pkgs[i].Date = sPkg.Date
+				p.pkgs[i].Score = sPkg.Score
+				p.pkgs[i].Date = sPkg.Date
 			}
 		}
 	}
 
-	return pkgs, nil
+	return nil
 }
 
-// GenerateScoresForPackages generates scores for the packages that have a
-// repository value but no score.
-func GenerateScoresForPackages(ctx context.Context, pkgs []Package) ([]Package, error) {
+// GenerateScores generates scores for the packages that have a repository
+// value but no score.
+func (p *packages) GenerateScores(ctx context.Context) error {
 	repoScores := map[string]float64{}
-	for i, pkg := range pkgs {
+	for i, pkg := range p.pkgs {
 		if !(strings.HasPrefix(pkg.RepositoryName, "github.com/") && pkg.Score == 0) {
 			continue
 		}
@@ -171,15 +188,15 @@ func GenerateScoresForPackages(ctx context.Context, pkgs []Package) ([]Package, 
 			// Genererate a score and add it to the package
 			score, err = generateScoreForRepository(ctx, pkg.RepositoryName)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
-		pkgs[i].Score = score
-		pkgs[i].Date = civil.DateOf(time.Now())
+		p.pkgs[i].Score = score
+		p.pkgs[i].Date = civil.DateOf(time.Now())
 	}
 
-	return pkgs, nil
+	return nil
 }
 
 func generateScoreForRepository(ctx context.Context, repository string) (float64, error) {

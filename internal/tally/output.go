@@ -37,7 +37,7 @@ var OutputFormats = []OutputFormat{
 
 // Output writes output for tally
 type Output interface {
-	WritePackages(io.Writer, []Package) error
+	WritePackages(io.Writer, Packages) error
 }
 
 // NewOutput returns a new output, configured by the provided options
@@ -64,25 +64,27 @@ type output struct {
 
 // WritePackages writes the provided packages to the given io.Writer in the
 // configured output format
-func (o *output) WritePackages(w io.Writer, pkgs []Package) error {
+func (o *output) WritePackages(w io.Writer, pkgs Packages) error {
+	p := pkgs.List()
+
 	// Unless -a is configured, ignore packages without a score
 	if !o.all {
-		p := []Package{}
-		for _, pkg := range pkgs {
+		fp := []Package{}
+		for _, pkg := range p {
 			if pkg.Score == 0 {
 				continue
 			}
-			p = append(p, pkg)
+			fp = append(fp, pkg)
 		}
-		pkgs = p
+		p = fp
 	}
 
 	// Sort the packages by score in the output
-	sort.Slice(pkgs, func(i, j int) bool {
-		return pkgs[i].Score > pkgs[j].Score
+	sort.Slice(p, func(i, j int) bool {
+		return p[i].Score > p[j].Score
 	})
 
-	return o.writer(w, pkgs)
+	return o.writer(w, p)
 }
 
 // WithOutputFormat is a functional option that configures the format of the

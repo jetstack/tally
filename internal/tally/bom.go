@@ -28,7 +28,7 @@ var BOMFormats = []BOMFormat{
 }
 
 // PackagesFromBOM extracts packages from a supported SBOM format
-func PackagesFromBOM(r io.Reader, format BOMFormat) ([]Package, error) {
+func PackagesFromBOM(r io.Reader, format BOMFormat) (Packages, error) {
 	switch format {
 	case BOMFormatCycloneDXJSON:
 		return packagesFromCycloneDX(r, cyclonedx.BOMFileFormatJSON)
@@ -41,14 +41,14 @@ func PackagesFromBOM(r io.Reader, format BOMFormat) ([]Package, error) {
 	}
 }
 
-func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]Package, error) {
+func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) (Packages, error) {
 	cdxBOM := &cyclonedx.BOM{}
 	if err := cyclonedx.NewBOMDecoder(r, format).Decode(cdxBOM); err != nil {
 		return nil, fmt.Errorf("decoding cyclonedx BOM: %w", err)
 	}
 	var pkgs []Package
 	if cdxBOM.Components == nil {
-		return pkgs, nil
+		return &packages{pkgs}, nil
 	}
 	if err := walkCycloneDXComponents(*cdxBOM.Components, func(component cyclonedx.Component) error {
 		if component.PackageURL == "" {
@@ -75,7 +75,7 @@ func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]Packa
 		return nil, err
 	}
 
-	return pkgs, nil
+	return &packages{pkgs}, nil
 }
 
 func walkCycloneDXComponents(components []cyclonedx.Component, fn func(cyclonedx.Component) error) error {
@@ -102,7 +102,7 @@ type syftArtifact struct {
 	Purl string `json:"purl"`
 }
 
-func packagesFromSyftJSON(r io.Reader) ([]Package, error) {
+func packagesFromSyftJSON(r io.Reader) (Packages, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func packagesFromSyftJSON(r io.Reader) ([]Package, error) {
 		pkgs = append(pkgs, pkg)
 	}
 
-	return pkgs, nil
+	return &packages{pkgs}, nil
 }
 
 var ErrUnsupportedPackageType = errors.New("unsupported package type")
