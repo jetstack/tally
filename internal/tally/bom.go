@@ -148,10 +148,22 @@ func packageFromPurl(purl packageurl.PackageURL) (Package, error) {
 			Version: purl.Version,
 		}, nil
 	case packageurl.TypeGolang:
+		name := purl.Name
+		if purl.Namespace != "" {
+			name = purl.Namespace + "/" + purl.Name
+		}
+		var repo string
+		if strings.HasPrefix(name, "github.com/") {
+			c := strings.Split(name, "/")
+			if len(c) >= 3 {
+				repo = strings.Join([]string{c[0], c[1], c[2]}, "/")
+			}
+		}
 		return Package{
-			System:  "GO",
-			Name:    strings.Join([]string{purl.Namespace, purl.Name}, "/"),
-			Version: purl.Version,
+			System:         "GO",
+			Name:           name,
+			Version:        purl.Version,
+			RepositoryName: repo,
 		}, nil
 	case packageurl.TypeMaven:
 		return Package{

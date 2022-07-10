@@ -55,6 +55,9 @@ func (p *Package) MarshalJSON() ([]byte, error) {
 func AddRepositoriesFromDepsDev(ctx context.Context, bq *bigquery.Client, pkgs []Package) ([]Package, error) {
 	var pkgQ []string
 	for _, pkg := range pkgs {
+		if pkg.RepositoryName != "" {
+			continue
+		}
 		pkgQ = append(pkgQ, fmt.Sprintf("('%s', '%s', '%s')", pkg.System, pkg.Name, pkg.Version))
 	}
 
