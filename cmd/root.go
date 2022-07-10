@@ -12,10 +12,11 @@ import (
 )
 
 type rootOptions struct {
-	All       bool
-	Format    string
-	Output    string
-	ProjectID string
+	All            bool
+	Format         string
+	GenerateScores bool
+	Output         string
+	ProjectID      string
 }
 
 var ro rootOptions
@@ -26,6 +27,10 @@ var rootCmd = &cobra.Command{
 	Long:  `Finds OpenSSF Scorecard scores for packages in a Software Bill of Materials.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if ro.GenerateScores && os.Getenv("GITHUB_TOKEN") == "" {
+			return fmt.Errorf("must set GITHUB_TOKEN environment variable with -g/--generate")
+		}
+
 		ctx := context.Background()
 
 		out, err := tally.NewOutput(
@@ -52,16 +57,37 @@ var rootCmd = &cobra.Command{
 			defer r.Close()
 		}
 
+		// Get packages from BOM
 		pkgs, err := tally.PackagesFromBOM(r, tally.BOMFormat(ro.Format))
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs))
 
-		fmt.Fprintf(os.Stderr, "Retrieving scores from BigQuery...\n")
-		pkgs, err = tally.ScorePackages(ctx, bq, pkgs)
+		// Get repositories from deps.dev
+		fmt.Fprintf(os.Stderr, "Fetching repository information from deps.dev dataset...\n")
+		pkgs, err = tally.AddRepositoriesFromDepsDev(ctx, bq, pkgs)
 		if err != nil {
 			return err
+		}
+
+		// TODO: Fetch missing repositories directly from package
+		// manager/infer from package?
+
+		// Integrate scores from the OpenSSF scorecard dataset
+		fmt.Fprintf(os.Stderr, "Fetching scores from OpenSSF scorecard dataset...\n")
+		pkgs, err = tally.AddScoresFromScorecardLatest(ctx, bq, pkgs)
+		if err != nil {
+			return err
+		}
+
+		// Generate missing scores
+		if ro.GenerateScores {
+			fmt.Fprintf(os.Stderr, "Generating missing scores...\n")
+			pkgs, err = tally.GenerateScoresForPackages(ctx, pkgs)
+			if err != nil {
+				return err
+			}
 		}
 
 		return out.WritePackages(os.Stdout, pkgs)
@@ -81,4 +107,5 @@ func init() {
 	rootCmd.Flags().StringVarP(&ro.Format, "format", "f", string(tally.BOMFormatCycloneDXJSON), fmt.Sprintf("BOM format, options=%s", tally.BOMFormats))
 	rootCmd.Flags().BoolVarP(&ro.All, "all", "a", false, "print all packages, even those without a scorecard score")
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", tally.OutputFormats))
+	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the public dataset. The GITHUB_TOKEN environment variable must be set.")
 }
