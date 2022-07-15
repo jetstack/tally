@@ -3,6 +3,9 @@
 Finds [OpenSSF Scorecard](https://github.com/ossf/scorecard) scores for packages
 in a Software Bill of Materials.
 
+This tool is currently under active development. There will be breaking changes
+and how it works may change significantly as it matures.
+
 ## How it works
 
 This tool queries the public BigQuery [deps.dev](https://deps.dev/data) and
