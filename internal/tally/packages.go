@@ -24,6 +24,7 @@ type Package struct {
 	RepositoryName string      `json:"repository,omitempty"`
 	Score          float64     `json:"score,omitempty"`
 	Date           civil.Date  `json:"date,omitempty"`
+	Table          string      `json:"table,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaler. It marshals the date field into an
@@ -54,7 +55,8 @@ func (p *Package) MarshalJSON() ([]byte, error) {
 type Packages interface {
 	AddRepositoriesFromDepsDev(context.Context, *bigquery.Client) error
 	AddScoresFromScorecardLatest(context.Context, *bigquery.Client) error
-	GenerateScores(context.Context) error
+	AddScoresFromScorecard(context.Context, *bigquery.Client, Table) error
+	GenerateScores(context.Context, *bigquery.Client, Table) error
 	List() []Package
 }
 
@@ -134,39 +136,28 @@ type scorecardResponse struct {
 // AddScoresFromScorecardLatest encriches the provided packages with scores from
 // the latest scorecard dataset.
 func (p *packages) AddScoresFromScorecardLatest(ctx context.Context, bq *bigquery.Client) error {
+	table, err := NewTable("openssf", "scorecardcron.scorecard-v2_latest")
+	if err != nil {
+		return err
+	}
+
+	return p.AddScoresFromScorecard(ctx, bq, table)
+}
+
+// AddScoresFromScorecard encriches the provided packages with scores from
+// the provided table.
+func (p *packages) AddScoresFromScorecard(ctx context.Context, bq *bigquery.Client, table Table) error {
 	var repositories []string
 	for _, pkg := range p.pkgs {
-		if pkg.RepositoryName == "" {
+		if pkg.RepositoryName == "" || pkg.Score > 0 {
 			continue
 		}
 		repositories = append(repositories, pkg.RepositoryName)
 	}
 
-	q := bq.Query(fmt.Sprintf(`
-SELECT repo.name as repositoryname, score, date
-FROM `+"`openssf.scorecardcron.scorecard-v2_latest`"+`
-WHERE repo.name IN ('%s');
-`,
-		strings.Join(repositories, "', '"),
-	))
-
-	it, err := q.Read(ctx)
+	resps, err := table.GetScores(ctx, bq, repositories)
 	if err != nil {
 		return err
-	}
-
-	var resps []scorecardResponse
-	for {
-		var resp scorecardResponse
-		err := it.Next(&resp)
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		resps = append(resps, resp)
 	}
 
 	// Add scores to the list of packages
@@ -175,6 +166,7 @@ WHERE repo.name IN ('%s');
 			if pkg.RepositoryName == resp.RepositoryName {
 				p.pkgs[i].Score = resp.Score
 				p.pkgs[i].Date = resp.Date
+				p.pkgs[i].Table = table.String()
 			}
 		}
 	}
@@ -184,7 +176,7 @@ WHERE repo.name IN ('%s');
 
 // GenerateScores generates scores for the packages that have a repository
 // value but no score.
-func (p *packages) GenerateScores(ctx context.Context) error {
+func (p *packages) GenerateScores(ctx context.Context, bq *bigquery.Client, table Table) error {
 	repoScores := map[string]float64{}
 	for i, pkg := range p.pkgs {
 		if !(strings.HasPrefix(pkg.RepositoryName, "github.com/") && pkg.Score == 0) {
@@ -196,17 +188,22 @@ func (p *packages) GenerateScores(ctx context.Context) error {
 			err   error
 			ok    bool
 		)
+		date := civil.DateOf(time.Now())
 		score, ok = repoScores[pkg.RepositoryName]
 		if !ok {
-			// Genererate a score and add it to the package
 			score, err = generateScoreForRepository(ctx, pkg.RepositoryName)
 			if err != nil {
+				return err
+			}
+
+			if err := table.InsertScore(ctx, bq, pkg.RepositoryName, score, date); err != nil {
 				return err
 			}
 		}
 
 		p.pkgs[i].Score = score
-		p.pkgs[i].Date = civil.DateOf(time.Now())
+		p.pkgs[i].Date = date
+		p.pkgs[i].Table = table.String()
 	}
 
 	return nil

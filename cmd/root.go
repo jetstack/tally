@@ -17,6 +17,7 @@ type rootOptions struct {
 	GenerateScores bool
 	Output         string
 	ProjectID      string
+	Table          string
 }
 
 var ro rootOptions
@@ -26,12 +27,24 @@ var rootCmd = &cobra.Command{
 	Short: "Finds OpenSSF Scorecard scores for packages in a Software Bill of Materials.",
 	Long:  `Finds OpenSSF Scorecard scores for packages in a Software Bill of Materials.`,
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		if ro.GenerateScores && os.Getenv("GITHUB_TOKEN") == "" {
 			return fmt.Errorf("must set GITHUB_TOKEN environment variable with -g/--generate")
 		}
 
+		if ro.GenerateScores && ro.Table == "" {
+			return fmt.Errorf("-t/--table must be set with -g/--generate")
+		}
+
 		ctx := context.Background()
+
+		var table tally.Table
+		if ro.Table != "" {
+			table, err = tally.NewTable(ro.ProjectID, ro.Table)
+			if err != nil {
+				return err
+			}
+		}
 
 		out, err := tally.NewOutput(
 			tally.WithOutputFormat(tally.OutputFormat(ro.Output)),
@@ -70,19 +83,24 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		// TODO: Fetch missing repositories directly from package
-		// manager/infer from package?
-
 		// Integrate scores from the OpenSSF scorecard dataset
-		fmt.Fprintf(os.Stderr, "Fetching scores from OpenSSF scorecard dataset...\n")
+		fmt.Fprintf(os.Stderr, "Fetching scores from the latest OpenSSF scorecard dataset...\n")
 		if err := pkgs.AddScoresFromScorecardLatest(ctx, bq); err != nil {
 			return err
 		}
 
+		// Integrate scores from a private scorecard dataset
+		if table != nil {
+			fmt.Fprintf(os.Stderr, "Fetching scores from %s...\n", table)
+			if err := pkgs.AddScoresFromScorecard(ctx, bq, table); err != nil {
+				return err
+			}
+		}
+
 		// Generate missing scores
-		if ro.GenerateScores {
+		if ro.GenerateScores && table != nil {
 			fmt.Fprintf(os.Stderr, "Generating missing scores...\n")
-			if err := pkgs.GenerateScores(ctx); err != nil {
+			if err := pkgs.GenerateScores(ctx, bq, table); err != nil {
 				return err
 			}
 		}
@@ -105,4 +123,5 @@ func init() {
 	rootCmd.Flags().BoolVarP(&ro.All, "all", "a", false, "print all packages, even those without a scorecard score")
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", tally.OutputFormats))
 	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the public dataset. The GITHUB_TOKEN environment variable must be set.")
+	rootCmd.Flags().StringVarP(&ro.Table, "table", "t", "", "additional scorecard table for generated scores")
 }

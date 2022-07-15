@@ -54,19 +54,26 @@ $ syft prom/prometheus -o cyclonedx-json | tally -p my-gcp-project -
 Not all the repositories in the deps.dev dataset have corresponding scores in
 the scorecard dataset.
 
-When the `-g/--generate` flag is set, `tally` will generate the missing scores
-itself.
+Tally can generate the missing scores and save them to a separate table in
+BigQuery, allowing you to maintain a private dataset that supplements the public
+one.
+
+To do this, set the `-g/--generate` flag and provide a table with `-t/--table`.
 
 This requires that the `GITHUB_TOKEN` environment variable is set to a valid
 token.
 
 ```
-$ tally -p my-gcp-project-id -g bom.json
+$ export GITHUB_TOKEN=<token>
+$ tally -p my-gcp-project-id -g -t 'dataset-name.table-name' bom.json
 Found 150 supported packages in BOM
 Fetching repository information from deps.dev dataset...
 Fetching scores from OpenSSF scorecard dataset...
 Generating missing scores...
 ```
+
+When `-t/-table` is set without `-g/--generate`, `tally` will query the table for existing
+scores but won't generate any new ones.
 
 ### Output formats
 

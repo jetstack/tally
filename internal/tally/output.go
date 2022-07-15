@@ -146,14 +146,14 @@ func writeShortOutput(w io.Writer, pkgs []Package) error {
 func writeWideOutput(w io.Writer, pkgs []Package) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 	defer tw.Flush()
-	fmt.Fprintf(tw, "TYPE\tPACKAGE\tVERSION\tREPOSITORY\tSCORE\tDATE\n")
+	fmt.Fprintf(tw, "TYPE\tPACKAGE\tVERSION\tREPOSITORY\tTABLE\tSCORE\tDATE\n")
 
 	for _, pkg := range pkgs {
 		if pkg.Score > 0 {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%.1f\t%s\n", pkg.Type, pkg.Name, pkg.Version, pkg.RepositoryName, pkg.Score, pkg.Date)
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%.1f\t%s\n", pkg.Type, pkg.Name, pkg.Version, pkg.RepositoryName, pkg.Table, pkg.Score, pkg.Date)
 		} else {
 
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", pkg.Type, pkg.Name, pkg.Version, pkg.RepositoryName, " ", " ")
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", pkg.Type, pkg.Name, pkg.Version, pkg.RepositoryName, pkg.Table, " ", " ")
 		}
 	}
 
