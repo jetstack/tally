@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/ribbybibby/tally/internal/scorecard"
 	"github.com/ribbybibby/tally/internal/tally"
 	"github.com/spf13/cobra"
 )
@@ -38,14 +40,6 @@ var rootCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		var table tally.Table
-		if ro.Table != "" {
-			table, err = tally.NewTable(ro.ProjectID, ro.Table)
-			if err != nil {
-				return err
-			}
-		}
-
 		out, err := tally.NewOutput(
 			tally.WithOutputFormat(tally.OutputFormat(ro.Output)),
 			tally.WithOutputAll(ro.All),
@@ -59,6 +53,14 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		var table scorecard.Table
+		if ro.Table != "" {
+			table, err = scorecard.NewTable(bq, ro.Table)
+			if err != nil {
+				return err
+			}
+		}
+
 		var r io.ReadCloser
 		if args[0] == "-" {
 			r = os.Stdin
@@ -70,29 +72,48 @@ var rootCmd = &cobra.Command{
 			defer r.Close()
 		}
 
+		var results []tally.Result
+
 		// Get packages from BOM
 		pkgs, err := tally.PackagesFromBOM(r, tally.BOMFormat(ro.Format))
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs.List()))
+		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs))
+
+		// Add the packages to the results
+		for i, pkg := range pkgs {
+			// We can infer the github repository from the Go module
+			// path
+			var repo string
+			if pkg.Type == tally.PackageTypeGo && strings.HasPrefix(pkg.Name, "github.com/") {
+				c := strings.Split(pkg.Name, "/")
+				if len(c) >= 3 {
+					repo = strings.Join([]string{c[0], c[1], c[2]}, "/")
+				}
+			}
+			results = append(results, tally.Result{Package: &pkgs[i], Repository: repo})
+		}
 
 		// Get repositories from deps.dev
 		fmt.Fprintf(os.Stderr, "Fetching repository information from deps.dev dataset...\n")
-		if err := pkgs.AddRepositoriesFromDepsDev(ctx, bq); err != nil {
+		results, err = tally.AddRepositoriesFromDepsDev(ctx, bq, results)
+		if err != nil {
 			return err
 		}
 
 		// Integrate scores from the OpenSSF scorecard dataset
 		fmt.Fprintf(os.Stderr, "Fetching scores from the latest OpenSSF scorecard dataset...\n")
-		if err := pkgs.AddScoresFromScorecardLatest(ctx, bq); err != nil {
+		results, err = tally.AddScoresFromScorecardLatest(ctx, bq, results)
+		if err != nil {
 			return err
 		}
 
 		// Integrate scores from a private scorecard dataset
 		if table != nil {
 			fmt.Fprintf(os.Stderr, "Fetching scores from %s...\n", table)
-			if err := pkgs.AddScoresFromScorecard(ctx, bq, table); err != nil {
+			results, err = tally.AddScoresFromScorecardTable(ctx, table, results)
+			if err != nil {
 				return err
 			}
 		}
@@ -100,12 +121,13 @@ var rootCmd = &cobra.Command{
 		// Generate missing scores
 		if ro.GenerateScores && table != nil {
 			fmt.Fprintf(os.Stderr, "Generating missing scores...\n")
-			if err := pkgs.GenerateScores(ctx, bq, table); err != nil {
+			results, err = tally.GenerateScores(ctx, table, results)
+			if err != nil {
 				return err
 			}
 		}
 
-		return out.WritePackages(os.Stdout, pkgs)
+		return out.WriteResults(os.Stdout, results)
 	},
 }
 

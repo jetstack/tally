@@ -28,7 +28,7 @@ var BOMFormats = []BOMFormat{
 }
 
 // PackagesFromBOM extracts packages from a supported SBOM format
-func PackagesFromBOM(r io.Reader, format BOMFormat) (Packages, error) {
+func PackagesFromBOM(r io.Reader, format BOMFormat) ([]Package, error) {
 	switch format {
 	case BOMFormatCycloneDXJSON:
 		return packagesFromCycloneDX(r, cyclonedx.BOMFileFormatJSON)
@@ -41,14 +41,14 @@ func PackagesFromBOM(r io.Reader, format BOMFormat) (Packages, error) {
 	}
 }
 
-func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) (Packages, error) {
+func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]Package, error) {
 	cdxBOM := &cyclonedx.BOM{}
 	if err := cyclonedx.NewBOMDecoder(r, format).Decode(cdxBOM); err != nil {
 		return nil, fmt.Errorf("decoding cyclonedx BOM: %w", err)
 	}
 	var pkgs []Package
 	if cdxBOM.Components == nil {
-		return &packages{pkgs}, nil
+		return pkgs, nil
 	}
 	if err := walkCycloneDXComponents(*cdxBOM.Components, func(component cyclonedx.Component) error {
 		if component.PackageURL == "" {
@@ -75,7 +75,7 @@ func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) (Package
 		return nil, err
 	}
 
-	return &packages{pkgs}, nil
+	return pkgs, nil
 }
 
 func walkCycloneDXComponents(components []cyclonedx.Component, fn func(cyclonedx.Component) error) error {
@@ -102,7 +102,7 @@ type syftArtifact struct {
 	Purl string `json:"purl"`
 }
 
-func packagesFromSyftJSON(r io.Reader) (Packages, error) {
+func packagesFromSyftJSON(r io.Reader) ([]Package, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func packagesFromSyftJSON(r io.Reader) (Packages, error) {
 		pkgs = append(pkgs, pkg)
 	}
 
-	return &packages{pkgs}, nil
+	return pkgs, nil
 }
 
 var ErrUnsupportedPackageType = errors.New("unsupported package type")
@@ -152,18 +152,10 @@ func packageFromPurl(purl packageurl.PackageURL) (Package, error) {
 		if purl.Namespace != "" {
 			name = purl.Namespace + "/" + purl.Name
 		}
-		var repo string
-		if strings.HasPrefix(name, "github.com/") {
-			c := strings.Split(name, "/")
-			if len(c) >= 3 {
-				repo = strings.Join([]string{c[0], c[1], c[2]}, "/")
-			}
-		}
 		return Package{
-			Type:           PackageTypeGo,
-			Name:           name,
-			Version:        purl.Version,
-			RepositoryName: repo,
+			Type:    PackageTypeGo,
+			Name:    name,
+			Version: purl.Version,
 		}, nil
 	case packageurl.TypeMaven:
 		return Package{

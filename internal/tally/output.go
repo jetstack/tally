@@ -37,7 +37,7 @@ var OutputFormats = []OutputFormat{
 
 // Output writes output for tally
 type Output interface {
-	WritePackages(io.Writer, Packages) error
+	WriteResults(io.Writer, []Result) error
 }
 
 // NewOutput returns a new output, configured by the provided options
@@ -62,29 +62,27 @@ type output struct {
 	writer outputWriter
 }
 
-// WritePackages writes the provided packages to the given io.Writer in the
+// WriteResults writes the provided results to the given io.Writer in the
 // configured output format
-func (o *output) WritePackages(w io.Writer, pkgs Packages) error {
-	p := pkgs.List()
-
+func (o *output) WriteResults(w io.Writer, results []Result) error {
 	// Unless -a is configured, ignore packages without a score
 	if !o.all {
-		fp := []Package{}
-		for _, pkg := range p {
-			if pkg.Score == 0 {
+		r := []Result{}
+		for _, result := range results {
+			if result.Score == 0 {
 				continue
 			}
-			fp = append(fp, pkg)
+			r = append(r, result)
 		}
-		p = fp
+		results = r
 	}
 
 	// Sort the packages by score in the output
-	sort.Slice(p, func(i, j int) bool {
-		return p[i].Score > p[j].Score
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
 	})
 
-	return o.writer(w, p)
+	return o.writer(w, results)
 }
 
 // WithOutputFormat is a functional option that configures the format of the
@@ -111,7 +109,7 @@ func WithOutputAll(all bool) OutputOption {
 	}
 }
 
-type outputWriter func(io.Writer, []Package) error
+type outputWriter func(io.Writer, []Result) error
 
 var outputWriterMap = map[OutputFormat]outputWriter{
 	OutputFormatShort: writeShortOutput,
@@ -119,49 +117,49 @@ var outputWriterMap = map[OutputFormat]outputWriter{
 	OutputFormatJSON:  writeJSONOutput,
 }
 
-func writeShortOutput(w io.Writer, pkgs []Package) error {
+func writeShortOutput(w io.Writer, results []Result) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 	defer tw.Flush()
 	fmt.Fprintf(tw, "REPOSITORY\tSCORE\n")
 
 	printed := map[string]struct{}{}
-	for _, pkg := range pkgs {
-		if pkg.RepositoryName == "" {
+	for _, result := range results {
+		if result.Repository == "" {
 			continue
 		}
-		if _, ok := printed[pkg.RepositoryName]; ok {
+		if _, ok := printed[result.Repository]; ok {
 			continue
 		}
-		if pkg.Score > 0 {
-			fmt.Fprintf(tw, "%s\t%.1f\n", pkg.RepositoryName, pkg.Score)
+		if result.Score > 0 {
+			fmt.Fprintf(tw, "%s\t%.1f\n", result.Repository, result.Score)
 		} else {
-			fmt.Fprintf(tw, "%s\t%s\n", pkg.RepositoryName, " ")
+			fmt.Fprintf(tw, "%s\t%s\n", result.Repository, " ")
 		}
-		printed[pkg.RepositoryName] = struct{}{}
+		printed[result.Repository] = struct{}{}
 	}
 
 	return nil
 }
 
-func writeWideOutput(w io.Writer, pkgs []Package) error {
+func writeWideOutput(w io.Writer, results []Result) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 	defer tw.Flush()
 	fmt.Fprintf(tw, "TYPE\tPACKAGE\tVERSION\tREPOSITORY\tTABLE\tSCORE\tDATE\n")
 
-	for _, pkg := range pkgs {
-		if pkg.Score > 0 {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%.1f\t%s\n", pkg.Type, pkg.Name, pkg.Version, pkg.RepositoryName, pkg.Table, pkg.Score, pkg.Date)
+	for _, result := range results {
+		if result.Score > 0 {
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%.1f\t%s\n", result.Package.Type, result.Package.Name, result.Package.Version, result.Repository, result.Table, result.Score, result.Date)
 		} else {
 
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", pkg.Type, pkg.Name, pkg.Version, pkg.RepositoryName, pkg.Table, " ", " ")
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", result.Package.Type, result.Package.Name, result.Package.Version, result.Repository, result.Table, " ", " ")
 		}
 	}
 
 	return nil
 }
 
-func writeJSONOutput(w io.Writer, pkgs []Package) error {
-	data, err := json.Marshal(pkgs)
+func writeJSONOutput(w io.Writer, results []Result) error {
+	data, err := json.Marshal(results)
 	if err != nil {
 		return nil
 	}
