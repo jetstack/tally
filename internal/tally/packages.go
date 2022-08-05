@@ -37,3 +37,17 @@ func (t *PackageType) DepsDevSystem() string {
 		return ""
 	}
 }
+
+func isPackage(a, b Package) bool {
+	return a.Type == b.Type && a.Name == b.Name && a.Version == b.Version
+}
+
+func containsPackage(pkgs []Package, pkg Package) bool {
+	for _, p := range pkgs {
+		if isPackage(p, pkg) {
+			return true
+		}
+	}
+
+	return false
+}

@@ -179,17 +179,3 @@ func generateScoreForRepository(ctx context.Context, repository string) (float64
 
 	return res.GetAggregateScore(checkDocs)
 }
-
-func isPackage(a, b Package) bool {
-	return a.Type == b.Type && a.Name == b.Name && a.Version == b.Version
-}
-
-func containsPackage(pkgs []Package, pkg Package) bool {
-	for _, p := range pkgs {
-		if isPackage(p, pkg) {
-			return true
-		}
-	}
-
-	return false
-}
