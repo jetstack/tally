@@ -34,10 +34,6 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("must set GITHUB_TOKEN environment variable with -g/--generate")
 		}
 
-		if ro.GenerateScores && ro.Table == "" {
-			return fmt.Errorf("-t/--table must be set with -g/--generate")
-		}
-
 		ctx := context.Background()
 
 		out, err := tally.NewOutput(
@@ -119,7 +115,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Generate missing scores
-		if ro.GenerateScores && table != nil {
+		if ro.GenerateScores {
 			fmt.Fprintf(os.Stderr, "Generating missing scores...\n")
 			results, err = tally.GenerateScores(ctx, table, results)
 			if err != nil {

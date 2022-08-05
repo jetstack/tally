@@ -12,9 +12,14 @@ import (
 
 // Row is a row in the scorecard table
 type Row struct {
-	RepoName string
-	Score    float64
-	Date     civil.Date
+	Repo  Repo       `bigquery:"repo"`
+	Score float64    `bigquery:"score"`
+	Date  civil.Date `bigquery:"date"`
+}
+
+// Repo is a RECORD that holds repository information
+type Repo struct {
+	Name string `bigquery:"name"`
 }
 
 // Table is a table holding scorecard information
@@ -76,7 +81,7 @@ func (t *table) SelectWhereRepositoryIn(ctx context.Context, repos []string) ([]
 	var rows []*Row
 
 	q := t.bq.Query(fmt.Sprintf(`
-SELECT repo.name as reponame, score, date
+SELECT repo, score, date
 FROM `+fmt.Sprintf("`%s`", t)+`
 WHERE repo.name IN ('%s');
 `,

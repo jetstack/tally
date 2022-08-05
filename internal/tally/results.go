@@ -90,7 +90,7 @@ func AddScoresFromScorecardTable(ctx context.Context, table scorecard.Table, res
 	// Add scores to the list of packages
 	for _, row := range rows {
 		for i, result := range results {
-			if result.Repository == row.RepoName {
+			if result.Repository == row.Repo.Name {
 				results[i].Score = row.Score
 				results[i].Date = row.Date.String()
 				results[i].Table = table.String()
@@ -116,17 +116,22 @@ func GenerateScores(ctx context.Context, table scorecard.Table, results []Result
 			fmt.Fprintf(os.Stdout, "Generating score for %s...\n", result.Repository)
 			score, err := generateScoreForRepository(ctx, result.Repository)
 			if err != nil {
-				return nil, err
+				fmt.Printf("error generating score for %s: %s\n", result.Repository, err)
+				continue
 			}
 
 			row = &scorecard.Row{
-				RepoName: result.Repository,
-				Score:    score,
-				Date:     date,
+				Repo: scorecard.Repo{
+					Name: result.Repository,
+				},
+				Score: score,
+				Date:  date,
 			}
 
-			if err := table.Insert(ctx, row); err != nil {
-				return nil, err
+			if table != nil {
+				if err := table.Insert(ctx, row); err != nil {
+					return nil, err
+				}
 			}
 
 			repoScores[result.Repository] = row
@@ -144,7 +149,7 @@ func generateScoreForRepository(ctx context.Context, repository string) (float64
 	repoURI, repoClient, ossFuzzRepoClient, ciiClient, vulnsClient, err := checker.GetClients(
 		ctx, repository, "", nil)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("getting clients: %w", err)
 	}
 	defer repoClient.Close()
 	if ossFuzzRepoClient != nil {
@@ -155,7 +160,7 @@ func generateScoreForRepository(ctx context.Context, repository string) (float64
 
 	checkDocs, err := docs.Read()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("checking docs: %s", err)
 	}
 
 	res, err := pkg.RunScorecards(
@@ -169,7 +174,7 @@ func generateScoreForRepository(ctx context.Context, repository string) (float64
 		vulnsClient,
 	)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("running scorecards: %w", err)
 	}
 
 	return res.GetAggregateScore(checkDocs)
