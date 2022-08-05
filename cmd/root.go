@@ -16,6 +16,7 @@ import (
 type rootOptions struct {
 	All            bool
 	Dataset        string
+	FailOn         float64Flag
 	Format         string
 	GenerateScores bool
 	Output         string
@@ -127,7 +128,23 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		return out.WriteResults(os.Stdout, results)
+		// Write output
+		if err := out.WriteResults(os.Stdout, results); err != nil {
+			os.Exit(1)
+		}
+
+		// Exit 1 if there is a score <= o.FailOn
+		if ro.FailOn.Value != nil {
+			for _, result := range results {
+				if result.Date == "" || result.Score > *ro.FailOn.Value {
+					continue
+				}
+				fmt.Fprintf(os.Stderr, "error: found scores <= to %0.2f\n", *ro.FailOn.Value)
+				os.Exit(1)
+			}
+		}
+
+		return nil
 	},
 }
 
@@ -146,4 +163,5 @@ func init() {
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", tally.OutputFormats))
 	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the public dataset. The GITHUB_TOKEN environment variable must be set.")
 	rootCmd.Flags().StringVarP(&ro.Dataset, "dataset", "d", "", "dataset for generated scores")
+	rootCmd.Flags().Var(&ro.FailOn, "fail-on", "fail if a package is found with a score <= to the given value")
 }

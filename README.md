@@ -101,6 +101,21 @@ $ tally -p my-gcp-project-id -g -d 'tally' bom.json
 When `-d/--dataset` is set without `-g/--generate`, `tally` will query the
 dataset for existing scores but won't generate any new ones.
 
+### Fail on low scores
+
+The return code will be set to 1 when a score is identified that is less than
+or equal to the value of `--fail-on`:
+
+```
+$ tally -p my-gcp-project --fail-on 3.5 bom.json
+...
+error: found scores <= to 3.50
+exit status 1
+```
+
+This will not consider packages `tally` has not been able to retrieve a score
+for.
+
 ### Output formats
 
 The `-o/--output` flag can be used to modify the output format.
