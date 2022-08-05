@@ -24,6 +24,7 @@ type Repo struct {
 
 // Table is a table holding scorecard information
 type Table interface {
+	Create(context.Context) error
 	SelectWhereRepositoryIn(context.Context, []string) ([]*Row, error)
 	Insert(context.Context, *Row) error
 	String() string
@@ -61,6 +62,23 @@ func NewTable(bq *bigquery.Client, tableRef string) (Table, error) {
 	}
 
 	return nil, fmt.Errorf("invalid table reference: %s", tableRef)
+}
+
+// Create the table
+func (t *table) Create(ctx context.Context) error {
+	schema, err := bigquery.InferSchema(Row{})
+	if err != nil {
+		return fmt.Errorf("inferring schema: %w", err)
+	}
+
+	err = t.bq.DatasetInProject(t.projectID, t.dataset).
+		Table(t.tableName).
+		Create(ctx, &bigquery.TableMetadata{Schema: schema})
+	if err != nil {
+		return fmt.Errorf("creating table: %w", err)
+	}
+
+	return nil
 }
 
 // String returns a string representation of the table in the form:

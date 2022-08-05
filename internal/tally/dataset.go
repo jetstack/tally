@@ -1,6 +1,7 @@
 package tally
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 
 // Dataset is a BigQuery dataset for storing generated scores
 type Dataset interface {
+	Create(context.Context) error
 	ScorecardTable() (scorecard.Table, error)
 	String() string
 }
@@ -43,6 +45,24 @@ func NewDataset(bq *bigquery.Client, ref string) (Dataset, error) {
 	}
 
 	return nil, fmt.Errorf("invalid dataset reference: %s", ref)
+}
+
+// Create creates the dataset
+func (d *dataset) Create(ctx context.Context) error {
+	if err := d.bq.DatasetInProject(d.projectID, d.name).Create(ctx, nil); err != nil {
+		return fmt.Errorf("creating dataset: %w", err)
+	}
+
+	scorecardTable, err := d.ScorecardTable()
+	if err != nil {
+		return fmt.Errorf("new scorecard table: %w", err)
+	}
+
+	if err := scorecardTable.Create(ctx); err != nil {
+		return fmt.Errorf("creating scorecard table: %w", err)
+	}
+
+	return nil
 }
 
 // String returns a reference to the dataset in the form
