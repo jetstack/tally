@@ -113,10 +113,10 @@ func GenerateScores(ctx context.Context, table scorecard.Table, results []Result
 		date := civil.DateOf(time.Now())
 		row, ok := repoScores[result.Repository]
 		if !ok {
-			fmt.Fprintf(os.Stdout, "Generating score for %s...\n", result.Repository)
+			fmt.Fprintf(os.Stderr, "Generating score for %s...\n", result.Repository)
 			score, err := generateScoreForRepository(ctx, result.Repository)
 			if err != nil {
-				fmt.Printf("error generating score for %s: %s\n", result.Repository, err)
+				fmt.Fprintf(os.Stderr, "error generating score for %s: %s\n", result.Repository, err)
 				continue
 			}
 

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/ribbybibby/tally/internal/tally"
@@ -43,7 +44,7 @@ var datasetCreateCmd = &cobra.Command{
 			return fmt.Errorf("creating dataset: %w", err)
 		}
 
-		fmt.Printf("Created dataset: %s\n", dataset)
+		fmt.Fprintf(os.Stderr, "Created dataset: %s\n", dataset)
 
 		return nil
 	},
