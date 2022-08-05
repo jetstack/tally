@@ -46,11 +46,17 @@ func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]Packa
 	if err := cyclonedx.NewBOMDecoder(r, format).Decode(cdxBOM); err != nil {
 		return nil, fmt.Errorf("decoding cyclonedx BOM: %w", err)
 	}
-	var pkgs []Package
-	if cdxBOM.Components == nil {
-		return pkgs, nil
+	var (
+		pkgs       []Package
+		components []cyclonedx.Component
+	)
+	if cdxBOM.Metadata != nil && cdxBOM.Metadata.Component != nil {
+		components = append(components, *cdxBOM.Metadata.Component)
 	}
-	if err := walkCycloneDXComponents(*cdxBOM.Components, func(component cyclonedx.Component) error {
+	if cdxBOM.Components != nil {
+		components = append(components, *cdxBOM.Components...)
+	}
+	if err := walkCycloneDXComponents(components, func(component cyclonedx.Component) error {
 		if component.PackageURL == "" {
 			return nil
 		}
