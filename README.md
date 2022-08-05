@@ -71,17 +71,22 @@ Fetching scores from OpenSSF scorecard dataset...
 Generating missing scores...
 ```
 
-Generation can take a while, depending on the number of missing scores. You can
-save the results to a private table in BigQuery with the `-t/--table` flag:
+### Store generated scores in BigQuery
+
+Generation can take a while, depending on the number of missing scores. To speed
+up subsequent invocations, `tally` supports saving scores to a BigQuery dataset.
+
+You can use [this terraform module](./terraform/dataset) to create the dataset.
+Or use it as a reference if you're going to create the dataset another way.
+
+Once it's set up, you can use it with the `-d/--dataset` flag:
 
 ```
-$ tally -p my-gcp-project-id -g -t 'dataset-name.table-name' bom.json
+$ tally -p my-gcp-project-id -g -d 'tally' bom.json
 ```
 
-On subsequent invocations, `tally` will retrieve the scores from this table.
-
-When `-t/-table` is set without `-g/--generate`, `tally` will query the table
-for existing scores but won't generate any new ones.
+When `-d/--dataset` is set without `-g/--generate`, `tally` will query the
+dataset for existing scores but won't generate any new ones.
 
 ### Output formats
 

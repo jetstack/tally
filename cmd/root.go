@@ -15,11 +15,11 @@ import (
 
 type rootOptions struct {
 	All            bool
+	Dataset        string
 	Format         string
 	GenerateScores bool
 	Output         string
 	ProjectID      string
-	Table          string
 }
 
 var ro rootOptions
@@ -50,8 +50,12 @@ var rootCmd = &cobra.Command{
 		}
 
 		var table scorecard.Table
-		if ro.Table != "" {
-			table, err = scorecard.NewTable(bq, ro.Table)
+		if ro.Dataset != "" {
+			dataset, err := tally.NewDataset(bq, ro.Dataset)
+			if err != nil {
+				return err
+			}
+			table, err = dataset.ScorecardTable()
 			if err != nil {
 				return err
 			}
@@ -141,5 +145,5 @@ func init() {
 	rootCmd.Flags().BoolVarP(&ro.All, "all", "a", false, "print all packages, even those without a scorecard score")
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", tally.OutputFormats))
 	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the public dataset. The GITHUB_TOKEN environment variable must be set.")
-	rootCmd.Flags().StringVarP(&ro.Table, "table", "t", "", "additional scorecard table for generated scores")
+	rootCmd.Flags().StringVarP(&ro.Dataset, "dataset", "d", "", "dataset for generated scores")
 }
