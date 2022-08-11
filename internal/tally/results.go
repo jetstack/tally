@@ -139,7 +139,9 @@ func GenerateScores(ctx context.Context, table scorecard.Table, results []Result
 
 		results[i].Score = row.Score
 		results[i].Date = row.Date.String()
-		results[i].Table = table.String()
+		if table != nil {
+			results[i].Table = table.String()
+		}
 	}
 
 	return results, nil
