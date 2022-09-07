@@ -13,8 +13,8 @@ import (
 	"github.com/ossf/scorecard/v4/checks"
 	docs "github.com/ossf/scorecard/v4/docs/checks"
 	"github.com/ossf/scorecard/v4/pkg"
-	"github.com/ribbybibby/tally/internal/depsdev"
-	"github.com/ribbybibby/tally/internal/scorecard"
+	"github.com/jetstack/tally/internal/depsdev"
+	"github.com/jetstack/tally/internal/scorecard"
 )
 
 // Result is the result of tally for a particular package

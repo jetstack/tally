@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/ribbybibby/tally/internal/tally"
+	"github.com/jetstack/tally/internal/tally"
 	"github.com/spf13/cobra"
 )
 

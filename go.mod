@@ -1,4 +1,4 @@
-module github.com/ribbybibby/tally
+module github.com/jetstack/tally
 
 go 1.18
 

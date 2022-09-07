@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/ribbybibby/tally/internal/scorecard"
-	"github.com/ribbybibby/tally/internal/tally"
+	"github.com/jetstack/tally/internal/scorecard"
+	"github.com/jetstack/tally/internal/tally"
 	"github.com/spf13/cobra"
 )
 

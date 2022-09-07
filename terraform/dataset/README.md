@@ -13,7 +13,7 @@ provider "google" {
 }
 
 module "tally_dataset" {
-  source = "github.com/ribbybibby/tally//terraform/dataset"
+  source = "github.com/jetstack/tally//terraform/dataset"
 }
 ```
 
@@ -21,7 +21,7 @@ You can configure the id, name and location of the dataset:
 
 ```hcl
 module "tally_dataset" {
-  source = "github.com/ribbybibby/tally//terraform/dataset"
+  source = "github.com/jetstack/tally//terraform/dataset"
 
   dataset_id    = "example"
   friendly_name = "example"

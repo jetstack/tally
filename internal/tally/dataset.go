@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/ribbybibby/tally/internal/scorecard"
+	"github.com/jetstack/tally/internal/scorecard"
 )
 
 // Dataset is a BigQuery dataset for storing generated scores

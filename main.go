@@ -1,6 +1,6 @@
 package main
 
-import "github.com/ribbybibby/tally/cmd"
+import "github.com/jetstack/tally/cmd"
 
 func main() {
 	cmd.Execute()
