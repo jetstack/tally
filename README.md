@@ -3,7 +3,7 @@
 Finds [OpenSSF Scorecard](https://github.com/ossf/scorecard) scores for packages
 in a Software Bill of Materials.
 
-This tool is currently under active development. There will be breaking changes
+⚠️ This tool is currently under active development. There will be breaking changes
 and how it works may change significantly as it matures.
 
 ## How it works
