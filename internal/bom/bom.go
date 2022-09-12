@@ -1,4 +1,4 @@
-package tally
+package bom
 
 import (
 	"encoding/json"
@@ -8,46 +8,47 @@ import (
 	"strings"
 
 	"github.com/CycloneDX/cyclonedx-go"
+	"github.com/jetstack/tally/internal/types"
 	"github.com/package-url/packageurl-go"
 )
 
-// BOMFormat is a supported SBOM format
-type BOMFormat string
+// Format is a supported SBOM format
+type Format string
 
 const (
-	BOMFormatCycloneDXJSON BOMFormat = "cyclonedx-json"
-	BOMFormatCycloneDXXML  BOMFormat = "cyclonedx-xml"
-	BOMFormatSyftJSON      BOMFormat = "syft-json"
+	FormatCycloneDXJSON Format = "cyclonedx-json"
+	FormatCycloneDXXML  Format = "cyclonedx-xml"
+	FormatSyftJSON      Format = "syft-json"
 )
 
-// BOMFormats are all the supported SBOM formats
-var BOMFormats = []BOMFormat{
-	BOMFormatCycloneDXJSON,
-	BOMFormatCycloneDXXML,
-	BOMFormatSyftJSON,
+// Formats are all the supported SBOM formats
+var Formats = []Format{
+	FormatCycloneDXJSON,
+	FormatCycloneDXXML,
+	FormatSyftJSON,
 }
 
 // PackagesFromBOM extracts packages from a supported SBOM format
-func PackagesFromBOM(r io.Reader, format BOMFormat) ([]Package, error) {
+func PackagesFromBOM(r io.Reader, format Format) ([]types.Package, error) {
 	switch format {
-	case BOMFormatCycloneDXJSON:
+	case FormatCycloneDXJSON:
 		return packagesFromCycloneDX(r, cyclonedx.BOMFileFormatJSON)
-	case BOMFormatCycloneDXXML:
+	case FormatCycloneDXXML:
 		return packagesFromCycloneDX(r, cyclonedx.BOMFileFormatXML)
-	case BOMFormatSyftJSON:
+	case FormatSyftJSON:
 		return packagesFromSyftJSON(r)
 	default:
 		return nil, fmt.Errorf("unsupported format: %s", format)
 	}
 }
 
-func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]Package, error) {
+func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]types.Package, error) {
 	cdxBOM := &cyclonedx.BOM{}
 	if err := cyclonedx.NewBOMDecoder(r, format).Decode(cdxBOM); err != nil {
 		return nil, fmt.Errorf("decoding cyclonedx BOM: %w", err)
 	}
 	var (
-		pkgs       []Package
+		pkgs       []types.Package
 		components []cyclonedx.Component
 	)
 	if cdxBOM.Metadata != nil && cdxBOM.Metadata.Component != nil {
@@ -108,7 +109,7 @@ type syftArtifact struct {
 	Purl string `json:"purl"`
 }
 
-func packagesFromSyftJSON(r io.Reader) ([]Package, error) {
+func packagesFromSyftJSON(r io.Reader) ([]types.Package, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -117,7 +118,7 @@ func packagesFromSyftJSON(r io.Reader) ([]Package, error) {
 	if err := json.Unmarshal(data, doc); err != nil {
 		return nil, err
 	}
-	var pkgs []Package
+	var pkgs []types.Package
 	for _, a := range doc.Artifacts {
 		if a.Purl == "" {
 			continue
@@ -141,47 +142,52 @@ func packagesFromSyftJSON(r io.Reader) ([]Package, error) {
 
 var ErrUnsupportedPackageType = errors.New("unsupported package type")
 
-func packageFromPurl(purl packageurl.PackageURL) (Package, error) {
+func packageFromPurl(purl packageurl.PackageURL) (types.Package, error) {
 	switch purl.Type {
 	case packageurl.TypeNPM:
 		name := purl.Name
 		if purl.Namespace != "" {
 			name = purl.Namespace + "/" + name
 		}
-		return Package{
-			Type:    PackageTypeNPM,
-			Name:    name,
-			Version: purl.Version,
+		return types.Package{
+			System: "NPM",
+			Name:   name,
 		}, nil
 	case packageurl.TypeGolang:
 		name := purl.Name
 		if purl.Namespace != "" {
 			name = purl.Namespace + "/" + purl.Name
 		}
-		return Package{
-			Type:    PackageTypeGo,
-			Name:    name,
-			Version: purl.Version,
+		return types.Package{
+			System: "GO",
+			Name:   name,
 		}, nil
 	case packageurl.TypeMaven:
-		return Package{
-			Type:    PackageTypeMaven,
-			Name:    strings.Join([]string{purl.Namespace, purl.Name}, ":"),
-			Version: purl.Version,
+		return types.Package{
+			System: "MAVEN",
+			Name:   strings.Join([]string{purl.Namespace, purl.Name}, ":"),
 		}, nil
 	case packageurl.TypePyPi:
-		return Package{
-			Type:    PackageTypePyPI,
-			Name:    purl.Name,
-			Version: purl.Version,
+		return types.Package{
+			System: "PYPI",
+			Name:   purl.Name,
 		}, nil
 	case "cargo":
-		return Package{
-			Type:    PackageTypeCargo,
-			Name:    purl.Name,
-			Version: purl.Version,
+		return types.Package{
+			System: "CARGO",
+			Name:   purl.Name,
 		}, nil
 	default:
-		return Package{}, ErrUnsupportedPackageType
+		return types.Package{}, ErrUnsupportedPackageType
 	}
+}
+
+func containsPackage(pkgs []types.Package, pkg types.Package) bool {
+	for _, p := range pkgs {
+		if p.Equals(pkg) {
+			return true
+		}
+	}
+
+	return false
 }

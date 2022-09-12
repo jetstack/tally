@@ -60,6 +60,11 @@ func TestAddGetChecks(t *testing.T) {
 			Repository: "github.com/foo/bar",
 			Score:      2,
 		},
+		{
+			Name:       "baz",
+			Repository: "github.com/baz/foo",
+			Score:      2,
+		},
 	}
 
 	if err := tallyDB.AddChecks(context.Background(), checks...); err != nil {
@@ -71,6 +76,11 @@ func TestAddGetChecks(t *testing.T) {
 			Name:       "bar",
 			Repository: "github.com/foo/bar",
 			Score:      2,
+		},
+		{
+			Name:       "baz",
+			Repository: "github.com/foo/bar",
+			Score:      0,
 		},
 		{
 			Name:       "foo",

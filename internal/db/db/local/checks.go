@@ -12,8 +12,23 @@ import (
 
 // GetChecks retrieves checks from the database for a repository
 func (d *database) GetChecks(ctx context.Context, repo string) ([]db.Check, error) {
+	// Get all the possible checks from the database
+	checkNames, err := d.getCheckNames(ctx)
+	if err != nil {
+		return []db.Check{}, err
+	}
+
+	var checks []db.Check
+	for _, name := range checkNames {
+		checks = append(checks, db.Check{
+			Name:       name,
+			Repository: repo,
+		})
+	}
+
+	// Get the checks for which we have scores for this repository
 	q := `
-        SELECT checks.name, repositories.name, check_scores.score
+        SELECT checks.name, check_scores.score
         FROM checks, repositories, check_scores
         WHERE check_scores.check_id = checks.id
         AND check_scores.repository_id = repositories.id
@@ -30,25 +45,57 @@ func (d *database) GetChecks(ctx context.Context, repo string) ([]db.Check, erro
 	}
 	defer rows.Close()
 
-	var checks []db.Check
+	var found bool
 	for rows.Next() {
-		var check db.Check
+		var row struct {
+			Name  string
+			Score int
+		}
 		if err := rows.Scan(
-			&check.Name,
-			&check.Repository,
-			&check.Score,
+			&row.Name,
+			&row.Score,
 		); err != nil {
 			return []db.Check{}, fmt.Errorf("scanning row: %w", err)
 		}
 
-		checks = append(checks, check)
+		for i, check := range checks {
+			if check.Name == row.Name {
+				found = true
+				checks[i].Score = row.Score
+			}
+		}
 	}
 
-	if len(checks) == 0 {
-		return checks, db.ErrNotFound
+	if !found {
+		return []db.Check{}, db.ErrNotFound
 	}
 
 	return checks, nil
+}
+
+func (d *database) getCheckNames(ctx context.Context) ([]string, error) {
+	q := `
+        SELECT DISTINCT name
+        FROM checks
+        ORDER BY name ASC;
+        `
+	rows, err := d.db.QueryContext(ctx, q)
+	if err != nil {
+		return []string{}, fmt.Errorf("querying database: %w", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return []string{}, fmt.Errorf("scanning row: %w", err)
+		}
+
+		names = append(names, name)
+	}
+
+	return names, nil
 }
 
 // AddChecks inserts checks into the database
