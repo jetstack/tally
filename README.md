@@ -76,27 +76,14 @@ Generating missing scores...
 Generation can take a while, depending on the number of missing scores. To speed
 up subsequent invocations, `tally` supports saving scores to a BigQuery dataset.
 
-You can create the dataset with the correct schema by running `tally dataset create`:
-
-```
-# Create a dataset called 'tally' in your project
-$ tally dataset create -p my-gcp-project-id tally
-Created dataset: my-gcp-project-id.tally
-
-# Or in another project
-$ tally dataset create -p my-gcp-project-id another-project.tally
-Created dataset: another-project.tally
-```
-
-Alternatively, you can use [this terraform module](./terraform/dataset) to
-create the dataset. Or use it as a reference if you're going to create the
-dataset another way.
-
-Once it's set up, you can use it with the `-d/--dataset` flag:
+Specify a dataset in your project with the `-d/--dataset` flag:
 
 ```
 $ tally -p my-gcp-project-id -g -d 'tally' bom.json
 ```
+
+If it doesn't already exists, `tally` will create the dataset with the required
+tables.
 
 When `-d/--dataset` is set without `-g/--generate`, `tally` will query the
 dataset for existing scores but won't generate any new ones.

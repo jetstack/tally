@@ -9,9 +9,9 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/db"
+	bqdb "github.com/jetstack/tally/internal/db/db/bigquery"
 	"github.com/jetstack/tally/internal/db/db/local"
 	"github.com/jetstack/tally/internal/output"
-	"github.com/jetstack/tally/internal/scorecard"
 	"github.com/jetstack/tally/internal/tally"
 	"github.com/jetstack/tally/internal/types"
 	"github.com/spf13/cobra"
@@ -41,47 +41,48 @@ var rootCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		out, err := output.NewOutput(
-			output.WithFormat(output.Format(ro.Output)),
-			output.WithAll(ro.All),
-		)
-		if err != nil {
-			return err
-		}
-
-		var table scorecard.Table
+		// Setup private BigQuery dataset
+		var bqDB db.ScoreDB
 		if ro.Dataset != "" {
 			if ro.ProjectID == "" {
 				return fmt.Errorf("must set --project-id with --dataset")
 			}
 			bq, err := bigquery.NewClient(ctx, ro.ProjectID)
 			if err != nil {
-				return err
+				return fmt.Errorf("creating bigquery client: %w", err)
 			}
-			dataset, err := tally.NewDataset(bq, ro.Dataset)
+			bqDB, err = bqdb.NewDB(ctx, bq, ro.Dataset)
 			if err != nil {
-				return err
+				return fmt.Errorf("creating new bigquery db: %w", err)
 			}
-			table, err = dataset.ScorecardTable()
-			if err != nil {
-				return err
+			if err := bqDB.Initialize(ctx); err != nil {
+				return fmt.Errorf("initializing bigquery db: %w", err)
 			}
 		}
 
+		// Configure the output writer
+		out, err := output.NewOutput(
+			output.WithFormat(output.Format(ro.Output)),
+			output.WithAll(ro.All),
+		)
+		if err != nil {
+			return fmt.Errorf("creating output writer: %w", err)
+		}
+
+		// Open the local sqlite database
 		dbPath, err := local.Path()
 		if err != nil {
 			return fmt.Errorf("getting database path: %w", err)
 		}
-
 		if _, err := os.Stat(dbPath); err != nil {
-			return fmt.Errorf("statting db  %q: %w", dbPath, err)
+			return fmt.Errorf("statting database %q: %w", dbPath, err)
 		}
-
 		tallyDB, err := local.NewDB(dbPath)
 		if err != nil {
 			return fmt.Errorf("opening database: %w", err)
 		}
 
+		// Get packages from the BOM
 		var r io.ReadCloser
 		if args[0] == "-" {
 			r = os.Stdin
@@ -92,15 +93,13 @@ var rootCmd = &cobra.Command{
 			}
 			defer r.Close()
 		}
-
-		// Get packages from BOM
 		pkgs, err := bom.PackagesFromBOM(r, bom.Format(ro.Format))
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs))
 
-		// Find repositories for the packages
+		// Find repositories for the packages from the database
 		for i, pkg := range pkgs {
 			repos, err := tallyDB.GetRepositories(ctx, pkg.System, pkg.Name)
 			if err != nil {
@@ -111,13 +110,14 @@ var rootCmd = &cobra.Command{
 			}
 
 			for _, repo := range repos {
-				if !contains(pkg.Repositories, repo) {
+				if !contains(pkgs[i].Repositories, repo) {
 					pkgs[i].Repositories = append(pkgs[i].Repositories, repo)
 				}
 			}
 		}
 
-		// Get score for each package+repository combination
+		// Get scores for each package+repository combination from the
+		// database
 		var results []types.Result
 		for _, pkg := range pkgs {
 			if len(pkg.Repositories) == 0 {
@@ -144,21 +144,81 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		// Integrate scores from a private scorecard dataset
-		if table != nil {
-			fmt.Fprintf(os.Stderr, "Fetching scores from %s...\n", table)
-			results, err = tally.AddScoresFromScorecardTable(ctx, table, results)
-			if err != nil {
-				return err
+		// Try and find any missing scores from the BigQuery dataset, if
+		// it's configured.
+		if bqDB != nil {
+			// Find repositories without scores
+			var repos []string
+			for _, result := range results {
+				if result.Repository == "" || result.Score != nil {
+					continue
+				}
+				repos = append(repos, result.Repository)
+			}
+
+			if len(repos) > 0 {
+				fmt.Fprintf(os.Stderr, "Fetching scores from dataset %q...\n", ro.Dataset)
+				scores, err := bqDB.GetScores(ctx, repos...)
+				if err != nil && err != db.ErrNotFound {
+					return fmt.Errorf("getting scores from private dataset: %w", err)
+				}
+				for _, score := range scores {
+					for i, result := range results {
+						if result.Repository != score.Repository {
+							continue
+						}
+						results[i].Score = &types.Score{
+							Score: score.Score,
+						}
+					}
+				}
 			}
 		}
 
-		// Generate missing scores, write them to a private dataset
+		// Generate any missing scores
 		if ro.GenerateScores {
-			fmt.Fprintf(os.Stderr, "Generating missing scores...\n")
-			results, err = tally.GenerateScores(ctx, table, results)
-			if err != nil {
-				return err
+			// Find repositories without scores
+			var repos []string
+			for _, result := range results {
+				if result.Repository == "" || result.Score != nil {
+					continue
+				}
+				if contains(repos, result.Repository) {
+					continue
+				}
+				repos = append(repos, result.Repository)
+			}
+
+			// Generate a score for each repository
+			for _, repo := range repos {
+				// Attempt to generate a score
+				fmt.Fprintf(os.Stderr, "Generating missing score for %s...\n", repo)
+				score, err := tally.GenerateScore(ctx, repo)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error generating score: %s\n", err)
+					continue
+				}
+
+				// Add the score to the results
+				for i, result := range results {
+					if result.Repository != repo {
+						continue
+					}
+					results[i].Score = &types.Score{
+						Score: score,
+					}
+				}
+
+				// Add the score to the private dataset, if it's
+				// configured
+				if bqDB != nil {
+					if err := bqDB.AddScores(ctx, db.Score{
+						Repository: repo,
+						Score:      score,
+					}); err != nil {
+						return fmt.Errorf("adding score to dataset: %w", err)
+					}
+				}
 			}
 		}
 
@@ -186,12 +246,15 @@ func getScore(ctx context.Context, tallyDB db.DB, repo string) (*types.Score, er
 	var score *types.Score
 
 	// Get the overall score
-	s, err := tallyDB.GetScore(ctx, repo)
+	s, err := tallyDB.GetScores(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
+	if len(s) != 1 {
+		return nil, fmt.Errorf("unexpected number of scores returned from database: %d", len(s))
+	}
 	score = &types.Score{
-		Score:  s,
+		Score:  s[0].Score,
 		Checks: map[string]int{},
 	}
 

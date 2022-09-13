@@ -2,33 +2,53 @@ package local
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/jetstack/tally/internal/db"
 )
 
-// GetScore retrieves a repository's score from the database
-func (d *database) GetScore(ctx context.Context, repo string) (float64, error) {
-	q := `
-        SELECT scores.score
+// GetScores retrieves scores for one or more repositories
+func (d *database) GetScores(ctx context.Context, repos ...string) ([]db.Score, error) {
+	vals := []interface{}{}
+	placeholders := []string{}
+	for _, repo := range repos {
+		vals = append(vals, repo)
+		placeholders = append(placeholders, "?")
+	}
+
+	q := fmt.Sprintf(`
+        SELECT repositories.name, scores.score
         FROM repositories, scores
         WHERE scores.repository_id = repositories.id
-        AND repositories.name IN (?)
-        `
+        AND repositories.name IN (%s)
+	ORDER BY repositories.name ASC;
+        `, strings.Join(placeholders, ", "))
 
-	var score float64
-	err := d.db.QueryRowContext(ctx, q, repo).Scan(&score)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return 0, db.ErrNotFound
-	case err != nil:
-		return 0, err
-	default:
-		return score, nil
+	rows, err := d.db.QueryContext(ctx, q, vals...)
+	if err != nil {
+		return []db.Score{}, fmt.Errorf("querying dataabase: %w", err)
 	}
+	defer rows.Close()
+
+	var scores []db.Score
+	for rows.Next() {
+		var score db.Score
+		if err := rows.Scan(
+			&score.Repository,
+			&score.Score,
+		); err != nil {
+			return []db.Score{}, fmt.Errorf("scanning row: %w", err)
+		}
+
+		scores = append(scores, score)
+	}
+
+	if len(scores) == 0 {
+		return []db.Score{}, db.ErrNotFound
+	}
+
+	return scores, nil
 }
 
 // AddScores inserts scores into the database

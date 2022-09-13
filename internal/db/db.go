@@ -12,13 +12,28 @@ var ErrNotFound = errors.New("not found")
 type DB interface {
 	DBReader
 	DBWriter
+	DBCloser
+	DBInitializer
+}
 
+// DBCloser closes a database
+type DBCloser interface {
 	// Close the database
 	Close() error
+}
 
-	// Initialize will setup the database. Returns an error if the store has
-	// already been initialized.
+// DBInitializer initializes a database
+type DBInitializer interface {
+	// Initialize the database
 	Initialize(context.Context) error
+}
+
+// ScoreDB reads and writes scores to the database
+type ScoreDB interface {
+	ScoreReader
+	ScoreWriter
+	DBCloser
+	DBInitializer
 }
 
 // DBReader reads data from the tally database
@@ -65,8 +80,8 @@ type Score struct {
 
 // ScoreReader reads scores from the database
 type ScoreReader interface {
-	// GetScore retrieves the overall scorecard score for a repository
-	GetScore(context.Context, string) (float64, error)
+	// GetScore retrieves scorecard scores for a list of repositories
+	GetScores(context.Context, ...string) ([]Score, error)
 }
 
 // ScoreWriter writes scores to the database

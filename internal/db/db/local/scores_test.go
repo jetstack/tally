@@ -29,7 +29,7 @@ func TestAddGetScores(t *testing.T) {
 
 	// There are no scores in the database, so we should get a not found
 	// error
-	if _, err := tallyDB.GetScore(context.Background(), "github.com/foo/bar"); err != db.ErrNotFound {
+	if _, err := tallyDB.GetScores(context.Background(), "github.com/foo/bar"); err != db.ErrNotFound {
 		t.Fatalf("expected error %q but got: %q", db.ErrNotFound, err)
 	}
 
@@ -47,18 +47,31 @@ func TestAddGetScores(t *testing.T) {
 			Repository: "github.com/bar/foo",
 			Score:      8.4,
 		},
+		{
+			Repository: "github.com/baz/foo",
+			Score:      6.6,
+		},
 	}
 	if err := tallyDB.AddScores(context.Background(), scores...); err != nil {
 		t.Fatalf("unexpected error adding scores: %s", err)
 	}
 
-	want := 4.5
-	got, err := tallyDB.GetScore(context.Background(), "github.com/foo/bar")
+	want := []db.Score{
+		{
+			Repository: "github.com/bar/foo",
+			Score:      8.4,
+		},
+		{
+			Repository: "github.com/foo/bar",
+			Score:      4.5,
+		},
+	}
+	got, err := tallyDB.GetScores(context.Background(), "github.com/foo/bar", "github.com/bar/foo")
 	if err != nil {
 		t.Fatalf("unexpected error getting scores: %s", err)
 	}
 
-	if !cmp.Equal(want, got) {
-		t.Fatalf("expected score %.2f but got %.2f", want, got)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected scores:\n%s", diff)
 	}
 }
