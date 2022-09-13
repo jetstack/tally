@@ -8,9 +8,14 @@ import (
 
 	"cloud.google.com/go/bigquery"
 
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/jetstack/tally/internal/db"
 	"github.com/jetstack/tally/internal/db/db/local"
 	bqsrc "github.com/jetstack/tally/internal/db/source/bigquery"
+	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +25,8 @@ func init() {
 	dbCmd.AddCommand(dbCreateCmd)
 	dbCreateCmd.Flags().StringVarP(&dbco.ProjectID, "project-id", "p", "", "Google Cloud project that Big Query requests are billed against")
 	dbCreateCmd.MarkFlagRequired("project-id")
+
+	dbCmd.AddCommand(dbPushCmd)
 }
 
 var dbCmd = &cobra.Command{
@@ -82,6 +89,59 @@ var dbCreateCmd = &cobra.Command{
 		}
 
 		fmt.Fprintf(os.Stderr, "Database created successfully.\n")
+
+		return nil
+	},
+}
+
+var dbPushCmd = &cobra.Command{
+	Use:   "push",
+	Short: "Push the database to a remote registry.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ref, err := name.ParseReference(args[0])
+		if err != nil {
+			return fmt.Errorf("parsing reference: %w", err)
+		}
+
+		dbPath, err := local.Path()
+		if err != nil {
+			return fmt.Errorf("getting database path: %w", err)
+		}
+
+		fmt.Fprintf(os.Stderr, "Exporting database...\n")
+		img, err := local.ExportDB(dbPath)
+		if err != nil {
+			return fmt.Errorf("exporting database: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Exported database successfully.\n")
+
+		var bar *progressbar.ProgressBar
+		updatesCh := make(chan v1.Update, 100)
+		go func() {
+			for {
+				select {
+				case update := <-updatesCh:
+					if bar == nil {
+						bar = progressbar.DefaultBytes(update.Total)
+					}
+					bar.Set64(update.Complete)
+				}
+			}
+		}()
+
+		fmt.Fprintf(os.Stderr, "Pushing database to %q...\n", ref)
+		rOpts := []remote.Option{
+			remote.WithAuthFromKeychain(authn.DefaultKeychain),
+			remote.WithProgress(updatesCh),
+		}
+		if err := remote.Write(ref, img, rOpts...); err != nil {
+			return fmt.Errorf("error pushing image: %w", err)
+		}
+		if bar != nil {
+			bar.Close()
+		}
+		fmt.Fprintf(os.Stderr, "Database pushed successfully.\n")
 
 		return nil
 	},
