@@ -27,6 +27,7 @@ func init() {
 	dbCreateCmd.MarkFlagRequired("project-id")
 
 	dbCmd.AddCommand(dbPushCmd)
+	dbCmd.AddCommand(dbPullCmd)
 }
 
 var dbCmd = &cobra.Command{
@@ -142,6 +143,44 @@ var dbPushCmd = &cobra.Command{
 			bar.Close()
 		}
 		fmt.Fprintf(os.Stderr, "Database pushed successfully.\n")
+
+		return nil
+	},
+}
+
+var dbPullCmd = &cobra.Command{
+	Use:   "pull",
+	Short: "Pull the database from a remote registry.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ref, err := name.ParseReference(args[0])
+		if err != nil {
+			return fmt.Errorf("parsing reference: %w", err)
+		}
+
+		dbPath, err := local.Path()
+		if err != nil {
+			return fmt.Errorf("getting database path: %w", err)
+		}
+
+		fmt.Fprintf(os.Stderr, "Pulling database from %q...\n", ref)
+		rOpts := []remote.Option{
+			remote.WithAuthFromKeychain(authn.DefaultKeychain),
+		}
+		desc, err := remote.Get(ref, rOpts...)
+		if err != nil {
+			return fmt.Errorf("getting remote descriptor: %w", err)
+		}
+
+		img, err := desc.Image()
+		if err != nil {
+			return fmt.Errorf("getting image from descriptor: %w", err)
+		}
+
+		if err := local.ImportDB(img, dbPath); err != nil {
+			return fmt.Errorf("importing database: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Database pulled successfully and imported into %s\n", dbPath)
 
 		return nil
 	},
