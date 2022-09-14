@@ -8,5 +8,5 @@ type Source interface {
 	String() string
 
 	// Update the database with items from the source
-	Update(context.Context) error
+	Update(context.Context, DBWriter) error
 }

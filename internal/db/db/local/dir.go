@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 )
 
-// Path returns the default path to the store
-func Path() (string, error) {
+// Dir returns the default path to the database
+func Dir() (string, error) {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return "", fmt.Errorf("getting user cache dir: %s", err)
 	}
 
-	return filepath.Join(cacheDir, "tally", "db", "tally.db"), nil
+	return filepath.Join(cacheDir, "tally", "db"), nil
 }

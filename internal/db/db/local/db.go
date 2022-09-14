@@ -10,26 +10,47 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// Option is a functional option that configures the database
+type Option func(db *database)
+
+// WithVacuumOnClose vacuums the database when it's closed
+func WithVacuumOnClose() Option {
+	return func(db *database) {
+		db.vacuum = true
+	}
+}
+
 type database struct {
-	db *sql.DB
+	db     *sql.DB
+	vacuum bool
 }
 
 // NewDB returns a new database at the provided path
-func NewDB(dbPath string) (db.DB, error) {
+func NewDB(dbPath string, opts ...Option) (db.DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	return &database{db}, nil
-}
-
-// Close closes the store
-func (d *database) Close() error {
-	if _, err := d.db.Exec(`VACUUM;`); err != nil {
-		return fmt.Errorf("vacuuming database: %w", err)
+	d := &database{
+		db: db,
 	}
 
+	for _, o := range opts {
+		o(d)
+	}
+
+	return d, nil
+}
+
+// Close closes the database
+func (d *database) Close() error {
+	if d.vacuum {
+		if _, err := d.db.Exec(`VACUUM;`); err != nil {
+			return fmt.Errorf("running vacuum: %w", err)
+		}
+
+	}
 	return d.db.Close()
 }
 

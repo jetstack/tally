@@ -10,14 +10,6 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-type mockScoreWriter struct {
-	addScores func(context.Context, ...db.Score) error
-}
-
-func (w *mockScoreWriter) AddScores(ctx context.Context, scores ...db.Score) error {
-	return w.addScores(ctx, scores...)
-}
-
 type mockScoreIterator struct {
 	rows []scoreRow
 	idx  int
@@ -47,11 +39,38 @@ func (i *mockScoreIterator) Next(any interface{}) error {
 
 func TestScoreSourceUpdate(t *testing.T) {
 	testCases := map[string]struct {
-		newSrc  func(t *testing.T) *scoreSrc
-		wantErr bool
+		newDBWriter func(t *testing.T) db.DBWriter
+		newSrc      func(t *testing.T) *scoreSrc
+		wantErr     bool
 	}{
 		// Test that Update passes all the returned rows to AddScores
 		"happy path": {
+			newDBWriter: func(t *testing.T) db.DBWriter {
+				return &mockDBWriter{
+					addScores: func(ctx context.Context, gotScores ...db.Score) error {
+						wantScores := []db.Score{
+							{
+								Repository: "github.com/foo/bar",
+								Score:      7.1,
+							},
+							{
+								Repository: "github.com/bar/foo",
+								Score:      3.2,
+							},
+							{
+								Repository: "github.com/baz/foo",
+								Score:      8.4,
+							},
+						}
+						if diff := cmp.Diff(wantScores, gotScores); diff != "" {
+							t.Fatalf("unexpected scores:\n%s", diff)
+						}
+
+						return nil
+					},
+				}
+
+			},
 			newSrc: func(t *testing.T) *scoreSrc {
 				return &scoreSrc{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
@@ -72,29 +91,6 @@ func TestScoreSourceUpdate(t *testing.T) {
 							},
 						}, nil
 
-					},
-					db: &mockScoreWriter{
-						addScores: func(ctx context.Context, gotScores ...db.Score) error {
-							wantScores := []db.Score{
-								{
-									Repository: "github.com/foo/bar",
-									Score:      7.1,
-								},
-								{
-									Repository: "github.com/bar/foo",
-									Score:      3.2,
-								},
-								{
-									Repository: "github.com/baz/foo",
-									Score:      8.4,
-								},
-							}
-							if diff := cmp.Diff(wantScores, gotScores); diff != "" {
-								t.Fatalf("unexpected scores:\n%s", diff)
-							}
-
-							return nil
-						},
 					},
 					batchSize: 5000000,
 				}
@@ -103,8 +99,39 @@ func TestScoreSourceUpdate(t *testing.T) {
 		// Test that Update splits the scores up into batches, according
 		// to the configured batchSize
 		"batch": {
-			newSrc: func(t *testing.T) *scoreSrc {
+			newDBWriter: func(t *testing.T) db.DBWriter {
 				i := 0
+				return &mockDBWriter{
+					addScores: func(ctx context.Context, gotScores ...db.Score) error {
+						wantScores := [][]db.Score{
+							{
+								{
+									Repository: "github.com/foo/bar",
+									Score:      7.1,
+								},
+								{
+									Repository: "github.com/bar/foo",
+									Score:      3.2,
+								},
+							},
+							{
+								{
+									Repository: "github.com/baz/foo",
+									Score:      8.4,
+								},
+							},
+						}
+						if diff := cmp.Diff(wantScores[i], gotScores); diff != "" {
+							t.Fatalf("unexpected scores:\n%s", diff)
+						}
+
+						i++
+
+						return nil
+					},
+				}
+			},
+			newSrc: func(t *testing.T) *scoreSrc {
 				return &scoreSrc{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
 						return &mockScoreIterator{
@@ -125,35 +152,6 @@ func TestScoreSourceUpdate(t *testing.T) {
 						}, nil
 
 					},
-					db: &mockScoreWriter{
-						addScores: func(ctx context.Context, gotScores ...db.Score) error {
-							wantScores := [][]db.Score{
-								{
-									{
-										Repository: "github.com/foo/bar",
-										Score:      7.1,
-									},
-									{
-										Repository: "github.com/bar/foo",
-										Score:      3.2,
-									},
-								},
-								{
-									{
-										Repository: "github.com/baz/foo",
-										Score:      8.4,
-									},
-								},
-							}
-							if diff := cmp.Diff(wantScores[i], gotScores); diff != "" {
-								t.Fatalf("unexpected scores:\n%s", diff)
-							}
-
-							i++
-
-							return nil
-						},
-					},
 					batchSize: 2,
 				}
 			},
@@ -161,17 +159,20 @@ func TestScoreSourceUpdate(t *testing.T) {
 		// Update should return an error when there's an error reading
 		// from BigQuery. AddScores shouldn't be called.
 		"read error": {
+			newDBWriter: func(t *testing.T) db.DBWriter {
+				return &mockDBWriter{
+					addScores: func(ctx context.Context, gotScores ...db.Score) error {
+						t.Fatalf("unexpected AddScores call")
+
+						return nil
+					},
+				}
+
+			},
 			newSrc: func(t *testing.T) *scoreSrc {
 				return &scoreSrc{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
 						return nil, fmt.Errorf("error")
-					},
-					db: &mockScoreWriter{
-						addScores: func(ctx context.Context, gotScores ...db.Score) error {
-							t.Fatalf("unexpected AddScores call")
-
-							return nil
-						},
 					},
 					batchSize: 5000000,
 				}
@@ -181,6 +182,13 @@ func TestScoreSourceUpdate(t *testing.T) {
 		// Update should return an error when there's an error calling
 		// AddScores
 		"write error": {
+			newDBWriter: func(t *testing.T) db.DBWriter {
+				return &mockDBWriter{
+					addScores: func(ctx context.Context, gotScores ...db.Score) error {
+						return fmt.Errorf("error")
+					},
+				}
+			},
 			newSrc: func(t *testing.T) *scoreSrc {
 				return &scoreSrc{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
@@ -194,11 +202,6 @@ func TestScoreSourceUpdate(t *testing.T) {
 						}, nil
 
 					},
-					db: &mockScoreWriter{
-						addScores: func(ctx context.Context, gotScores ...db.Score) error {
-							return fmt.Errorf("error")
-						},
-					},
 					batchSize: 5000000,
 				}
 			},
@@ -207,17 +210,20 @@ func TestScoreSourceUpdate(t *testing.T) {
 		// Update should return an error when there's an error calling
 		// Next on the iterator
 		"iterator error": {
+			newDBWriter: func(t *testing.T) db.DBWriter {
+				return &mockDBWriter{
+					addScores: func(ctx context.Context, gotScores ...db.Score) error {
+						t.Fatalf("unexpected AddScores call")
+
+						return nil
+					},
+				}
+
+			},
 			newSrc: func(t *testing.T) *scoreSrc {
 				return &scoreSrc{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
 						return &mockScoreIterator{err: fmt.Errorf("error")}, nil
-					},
-					db: &mockScoreWriter{
-						addScores: func(ctx context.Context, gotScores ...db.Score) error {
-							t.Fatalf("unexpected AddScores call")
-
-							return nil
-						},
 					},
 					batchSize: 5000000,
 				}
@@ -228,8 +234,9 @@ func TestScoreSourceUpdate(t *testing.T) {
 	for n, tc := range testCases {
 		t.Run(n, func(t *testing.T) {
 			src := tc.newSrc(t)
+			w := tc.newDBWriter(t)
 
-			err := src.Update(context.Background())
+			err := src.Update(context.Background(), w)
 			if err != nil && !tc.wantErr {
 				t.Fatalf("unexpected error calling Update: %s", err)
 			}

@@ -48,10 +48,19 @@ func (o *output) WriteResults(w io.Writer, results []types.Result) error {
 
 	// Sort the packages by score in the output
 	sort.Slice(results, func(i, j int) bool {
-		if results[j].Score == nil || results[i].Score == nil {
-			return false
+		var (
+			is float64
+			js float64
+		)
+		if results[i].Score != nil {
+			is = results[i].Score.Score
 		}
-		return results[i].Score.Score > results[j].Score.Score
+
+		if results[j].Score != nil {
+			js = results[j].Score.Score
+		}
+
+		return is > js
 	})
 
 	return o.writer(w, results)

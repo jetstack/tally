@@ -10,7 +10,6 @@ import (
 )
 
 type scoreSrc struct {
-	db        db.ScoreWriter
 	read      bqRead
 	batchSize int
 }
@@ -22,9 +21,8 @@ type scoreRow struct {
 
 // NewScoreSource returns a new source that fetches scores from the scorecard
 // dataset
-func NewScoreSource(bq *bigquery.Client, db db.DB) db.Source {
+func NewScoreSource(bq *bigquery.Client) db.Source {
 	return &scoreSrc{
-		db: db,
 		read: func(ctx context.Context, qs string) (bqRowIterator, error) {
 			return bq.Query(qs).Read(ctx)
 		},
@@ -39,7 +37,7 @@ func (s *scoreSrc) String() string {
 
 // Update fetches scores from the scorecard dataset and adds them to the
 // database
-func (s *scoreSrc) Update(ctx context.Context) error {
+func (s *scoreSrc) Update(ctx context.Context, w db.DBWriter) error {
 	qs := `
 	SELECT DISTINCT scorecard.repo.name as repository, MIN(scorecard.score) as score
         FROM ` + "`openssf.scorecardcron.scorecard-v2_latest`" + ` scorecard
@@ -78,7 +76,7 @@ func (s *scoreSrc) Update(ctx context.Context) error {
 			})
 		}
 
-		if err := s.db.AddScores(ctx, scores...); err != nil {
+		if err := w.AddScores(ctx, scores...); err != nil {
 			return fmt.Errorf("adding scores: %w", err)
 		}
 

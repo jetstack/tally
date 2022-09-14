@@ -7,6 +7,9 @@ import (
 	"os"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/db"
 	bqdb "github.com/jetstack/tally/internal/db/db/bigquery"
@@ -19,7 +22,9 @@ import (
 
 type rootOptions struct {
 	All            bool
+	CheckForUpdate bool
 	Dataset        string
+	DBRef          string
 	FailOn         float64Flag
 	Format         string
 	GenerateScores bool
@@ -69,18 +74,47 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("creating output writer: %w", err)
 		}
 
-		// Open the local sqlite database
-		dbPath, err := local.Path()
+		dbDir, err := local.Dir()
 		if err != nil {
 			return fmt.Errorf("getting database path: %w", err)
 		}
-		if _, err := os.Stat(dbPath); err != nil {
-			return fmt.Errorf("statting database %q: %w", dbPath, err)
-		}
-		tallyDB, err := local.NewDB(dbPath)
+
+		mgr, err := local.NewManager(dbDir)
 		if err != nil {
-			return fmt.Errorf("opening database: %w", err)
+			return fmt.Errorf("creating database manager: %w", err)
 		}
+
+		if ro.CheckForUpdate {
+			ref, err := name.ParseReference(ro.DBRef)
+			if err != nil {
+				return fmt.Errorf("parsing reference: %w", err)
+			}
+			rOpts := []remote.Option{
+				remote.WithContext(ctx),
+				remote.WithAuthFromKeychain(authn.DefaultKeychain),
+			}
+			a, err := local.GetArchiveFromRemote(ref, rOpts...)
+			if err != nil {
+				return fmt.Errorf("getting archive from remote image: %w", err)
+			}
+			update, err := mgr.NeedsUpdate(a)
+			if err != nil {
+				return fmt.Errorf("checking update status: %w", err)
+			}
+			if update {
+				fmt.Fprintf(os.Stderr, "Pulling latest database. This may take a few minutes...\n")
+				if err := mgr.ImportDB(a); err != nil {
+					return fmt.Errorf("importing database: %w", err)
+				}
+				fmt.Fprintf(os.Stderr, "Finished download.\n")
+			}
+		}
+
+		tallyDB, err := mgr.DB()
+		if err != nil {
+			return fmt.Errorf("getting database from manager: %w", err)
+		}
+		defer tallyDB.Close()
 
 		// Get packages from the BOM
 		var r io.ReadCloser
@@ -294,5 +328,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", output.Formats))
 	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the public dataset. The GITHUB_TOKEN environment variable must be set.")
 	rootCmd.Flags().StringVarP(&ro.Dataset, "dataset", "d", "", "dataset for generated scores")
+	rootCmd.Flags().BoolVar(&ro.CheckForUpdate, "check-for-update", true, "check for database update")
+	rootCmd.Flags().StringVar(&ro.DBRef, "db-reference", "ghcr.io/jetstack/tally/db:latest", "image reference to download database from")
 	rootCmd.Flags().Var(&ro.FailOn, "fail-on", "fail if a package is found with a score <= to the given value")
 }

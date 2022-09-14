@@ -10,7 +10,6 @@ import (
 )
 
 type pkgSrc struct {
-	db        db.PackageWriter
 	read      bqRead
 	batchSize int
 }
@@ -23,9 +22,8 @@ type pkgRow struct {
 
 // NewPackageSource returns a new source that fetches the package -> repository
 // relationships from the deps.dev dataset
-func NewPackageSource(bq *bigquery.Client, db db.DB) db.Source {
+func NewPackageSource(bq *bigquery.Client) db.Source {
 	return &pkgSrc{
-		db: db,
 		read: func(ctx context.Context, qs string) (bqRowIterator, error) {
 			return bq.Query(qs).Read(ctx)
 		},
@@ -40,7 +38,7 @@ func (s *pkgSrc) String() string {
 
 // Update finds the repository for the latest version of every Github-hosted
 // package in the deps.dev dataset and adds it to the database.
-func (s *pkgSrc) Update(ctx context.Context) error {
+func (s *pkgSrc) Update(ctx context.Context, w db.DBWriter) error {
 	qs := `
         SELECT DISTINCT t1.System, t1.Name, CONCAT('github.com/', t1.ProjectName) as repository
         FROM  ` + "`bigquery-public-data.deps_dev_v1.PackageVersionToProjectLatest`" + ` t1
@@ -87,7 +85,7 @@ func (s *pkgSrc) Update(ctx context.Context) error {
 			})
 		}
 
-		if err := s.db.AddPackages(ctx, pkgs...); err != nil {
+		if err := w.AddPackages(ctx, pkgs...); err != nil {
 			return fmt.Errorf("adding packages: %w", err)
 		}
 

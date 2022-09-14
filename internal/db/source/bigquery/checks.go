@@ -10,7 +10,6 @@ import (
 )
 
 type checkSrc struct {
-	db        db.CheckWriter
 	read      bqRead
 	batchSize int
 }
@@ -23,9 +22,8 @@ type checkRow struct {
 
 // NewCheckSource returns a source that fetches scorecard check scores from the
 // scorecard dataset
-func NewCheckSource(bq *bigquery.Client, db db.DB) db.Source {
+func NewCheckSource(bq *bigquery.Client) db.Source {
 	return &checkSrc{
-		db: db,
 		read: func(ctx context.Context, qs string) (bqRowIterator, error) {
 			return bq.Query(qs).Read(ctx)
 		},
@@ -40,7 +38,7 @@ func (s *checkSrc) String() string {
 
 // Update fetches scores from the scorecard dataset and adds them to the
 // database
-func (s *checkSrc) Update(ctx context.Context) error {
+func (s *checkSrc) Update(ctx context.Context, w db.DBWriter) error {
 	qs := `
         SELECT DISTINCT scorecard.repo.name as repository, checks.name, checks.score
         FROM ` + "`openssf.scorecardcron.scorecard-v2_latest`" + ` scorecard
@@ -80,7 +78,7 @@ func (s *checkSrc) Update(ctx context.Context) error {
 			})
 		}
 
-		if err := s.db.AddChecks(ctx, checks...); err != nil {
+		if err := w.AddChecks(ctx, checks...); err != nil {
 			return fmt.Errorf("adding checks: %w", err)
 		}
 
