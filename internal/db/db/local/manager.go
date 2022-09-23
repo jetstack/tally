@@ -218,19 +218,51 @@ func (m *manager) ImportDB(a Archive) error {
 	}
 
 	// Write database to file
-	f, err := os.Create(filepath.Join(tmpDir, "tally.db"))
-	if err != nil {
+	dbFile := filepath.Join(tmpDir, "tally.db")
+	if err := writeFile(dbFile, a); err != nil {
 		return fmt.Errorf("creating database file: %w", err)
 	}
-	defer f.Close()
 
-	if _, err := io.Copy(f, a); err != nil {
-		return fmt.Errorf("writing database to file: %w", err)
+	// Confirm that the metadata matches the db
+	if err := validateMetadata(tmpDir); err != nil {
+		return fmt.Errorf("validating metadata: %w", err)
 	}
 
 	// Copy from the temporary directory to the database directory
 	if err := copyDB(tmpDir, m.dbDir); err != nil {
 		return fmt.Errorf("copying database: %w", err)
+	}
+
+	return nil
+}
+
+func writeFile(path string, r io.Reader) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("creating file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, r); err != nil {
+		return fmt.Errorf("writing database to file: %w", err)
+	}
+
+	return nil
+}
+
+func validateMetadata(dbDir string) error {
+	hash, err := sha256Sum(filepath.Join(dbDir, "tally.db"))
+	if err != nil {
+		return fmt.Errorf("getting database hash: %w", err)
+	}
+
+	metadata, err := metadataFromFile(filepath.Join(dbDir, "metadata.json"))
+	if err != nil {
+		return fmt.Errorf("getting metadata: %w", err)
+	}
+
+	if hash != metadata.Hash {
+		return fmt.Errorf("database hash does not match metadata, expected %s but got %s", metadata.Hash, hash)
 	}
 
 	return nil
