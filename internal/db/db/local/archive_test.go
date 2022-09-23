@@ -52,7 +52,7 @@ func TestArchiveWriteGetFromRemote(t *testing.T) {
 	}
 
 	// Write the archive to the registry
-	if err := WriteArchiveToRemote(ref, wantArchive); err != nil {
+	if _, err := WriteArchiveToRemote(ref, wantArchive); err != nil {
 		t.Fatalf("unexpected error writing archive to registry: %s", err)
 	}
 

@@ -123,13 +123,14 @@ var dbPushCmd = &cobra.Command{
 			remote.WithProgress(updatesCh),
 		}
 
-		if err := local.WriteArchiveToRemote(ref, a, rOpts...); err != nil {
+		digest, err := local.WriteArchiveToRemote(ref, a, rOpts...)
+		if err != nil {
 			return fmt.Errorf("error writing to remote registry: %w", err)
 		}
 		if bar != nil {
 			bar.Close()
 		}
-		fmt.Fprintf(os.Stderr, "Database pushed successfully.\n")
+		fmt.Fprintf(os.Stdout, "%s", digest)
 
 		return nil
 	},

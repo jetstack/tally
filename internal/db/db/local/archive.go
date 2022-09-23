@@ -40,15 +40,15 @@ type Archive interface {
 }
 
 // WriteArchiveToRemote writes an archive to a remote registry
-func WriteArchiveToRemote(ref name.Reference, archive Archive, remoteOpts ...remote.Option) error {
+func WriteArchiveToRemote(ref name.Reference, archive Archive, remoteOpts ...remote.Option) (name.Digest, error) {
 	metadata, err := archive.Metadata()
 	if err != nil {
-		return fmt.Errorf("getting metadata: %w", err)
+		return name.Digest{}, fmt.Errorf("getting metadata: %w", err)
 	}
 
 	layer, err := makeDBLayer(archive)
 	if err != nil {
-		return fmt.Errorf("creating layer: %w", err)
+		return name.Digest{}, fmt.Errorf("creating layer: %w", err)
 	}
 
 	img, err := mutate.AppendLayers(
@@ -65,14 +65,19 @@ func WriteArchiveToRemote(ref name.Reference, archive Archive, remoteOpts ...rem
 		layer,
 	)
 	if err != nil {
-		return fmt.Errorf("creating image: %w", err)
+		return name.Digest{}, fmt.Errorf("creating image: %w", err)
+	}
+
+	digest, err := img.Digest()
+	if err != nil {
+		return name.Digest{}, fmt.Errorf("getting image digest: %w", err)
 	}
 
 	if err := remote.Write(ref, img, remoteOpts...); err != nil {
-		return fmt.Errorf("writing remote image: %w", err)
+		return name.Digest{}, fmt.Errorf("writing remote image: %w", err)
 	}
 
-	return nil
+	return ref.Context().Digest(digest.String()), nil
 }
 
 func makeDBLayer(r io.Reader) (v1.Layer, error) {
