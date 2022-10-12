@@ -5,12 +5,12 @@ go 1.18
 require (
 	cloud.google.com/go/bigquery v1.40.0
 	github.com/CycloneDX/cyclonedx-go v0.6.0
+	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.11.1-0.20220829182715-f981b4c07e53
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/ossf/scorecard/v4 v4.6.0
 	github.com/package-url/packageurl-go v0.1.0
-	github.com/schollz/progressbar/v3 v3.11.0
 	github.com/spf13/cobra v1.5.0
 	google.golang.org/api v0.95.0
 )
@@ -21,6 +21,7 @@ require (
 	cloud.google.com/go/iam v0.4.0 // indirect
 	cloud.google.com/go/storage v1.26.0 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
+	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0 // indirect
 	github.com/caarlos0/env/v6 v6.10.1 // indirect
@@ -50,7 +51,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/buildkit v0.10.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
@@ -72,7 +72,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1 // indirect
 	golang.org/x/sync v0.0.0-20220907140024-f12130a52804 // indirect
 	golang.org/x/sys v0.0.0-20220913120320-3275c407cedc // indirect
-	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

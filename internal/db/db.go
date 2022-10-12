@@ -57,7 +57,7 @@ type Package struct {
 	Repository string
 }
 
-// PackageWriter reads package information from the database
+// PackageReader reads package information from the database
 type PackageReader interface {
 	// GetRepositories returns any repositories associated with the package
 	// indicated by system and name. Returns ErrNotFound if there are no matching

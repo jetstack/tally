@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// Dir returns the default path to the database
+// Dir returns the default path to the local database
 func Dir() (string, error) {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {

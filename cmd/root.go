@@ -8,12 +8,12 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/db"
-	bqdb "github.com/jetstack/tally/internal/db/db/bigquery"
-	"github.com/jetstack/tally/internal/db/db/local"
+	bqdb "github.com/jetstack/tally/internal/db/bigquery/db"
+	"github.com/jetstack/tally/internal/db/local"
+	"github.com/jetstack/tally/internal/db/local/oci"
 	"github.com/jetstack/tally/internal/output"
 	"github.com/jetstack/tally/internal/tally"
 	"github.com/jetstack/tally/internal/types"
@@ -74,39 +74,30 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("creating output writer: %w", err)
 		}
 
-		dbDir, err := local.Dir()
-		if err != nil {
-			return fmt.Errorf("getting database path: %w", err)
-		}
-
-		mgr, err := local.NewManager(dbDir)
+		mgr, err := local.NewManager(local.WithWriter(os.Stderr))
 		if err != nil {
 			return fmt.Errorf("creating database manager: %w", err)
 		}
 
+		// Update the database, if there's a new version available
 		if ro.CheckForUpdate {
-			ref, err := name.ParseReference(ro.DBRef)
+			opts := []oci.Option{
+				oci.WithProgressBarWriter(os.Stderr),
+				oci.WithRemoteOptions(
+					remote.WithContext(ctx),
+					remote.WithAuthFromKeychain(authn.DefaultKeychain),
+				),
+			}
+			archive, err := oci.GetArchive(ro.DBRef, opts...)
 			if err != nil {
-				return fmt.Errorf("parsing reference: %w", err)
+				return fmt.Errorf("fetching archive: %w", err)
 			}
-			rOpts := []remote.Option{
-				remote.WithContext(ctx),
-				remote.WithAuthFromKeychain(authn.DefaultKeychain),
-			}
-			a, err := local.GetArchiveFromRemote(ref, rOpts...)
+			updated, err := mgr.UpdateDB(archive)
 			if err != nil {
-				return fmt.Errorf("getting archive from remote image: %w", err)
+				return fmt.Errorf("importing database: %w", err)
 			}
-			update, err := mgr.NeedsUpdate(a)
-			if err != nil {
-				return fmt.Errorf("checking update status: %w", err)
-			}
-			if update {
-				fmt.Fprintf(os.Stderr, "Pulling latest database. This may take a few minutes...\n")
-				if err := mgr.ImportDB(a); err != nil {
-					return fmt.Errorf("importing database: %w", err)
-				}
-				fmt.Fprintf(os.Stderr, "Finished download.\n")
+			if updated {
+				fmt.Fprintf(os.Stderr, "Pulled database.\n")
 			}
 		}
 

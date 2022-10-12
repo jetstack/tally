@@ -1,11 +1,11 @@
 package local
 
 import (
-	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -15,59 +15,201 @@ import (
 	"github.com/jetstack/tally/internal/db"
 )
 
-func TestExportImportDB(t *testing.T) {
-	exportDir, err := ioutil.TempDir("", "tally-db-export")
-	if err != nil {
-		t.Fatalf("unexpected error creating temp dir: %s", err)
-	}
-	defer os.RemoveAll(exportDir)
+type mockArchive struct {
+	db       func() ([]byte, error)
+	metadata func() (*Metadata, error)
+}
 
-	importDir, err := ioutil.TempDir("", "tally-db-import")
-	if err != nil {
-		t.Fatalf("unexpected error creating temp dir: %s", err)
-	}
-	defer os.RemoveAll(importDir)
-
-	exportMgr := &manager{
-		dbDir: exportDir,
+func (m *mockArchive) DB() ([]byte, error) {
+	if m.db == nil {
+		return []byte{}, nil
 	}
 
-	// Test that we get an error when the database doesn't exist
-	if _, err := exportMgr.ExportDB(); err == nil {
-		t.Fatalf("expected error exporting non-existent database but got nil")
+	return m.db()
+}
+
+func (m *mockArchive) Metadata() (*Metadata, error) {
+	if m.metadata == nil {
+		return nil, nil
 	}
 
-	// Create the database
-	if err := exportMgr.CreateDB(context.Background()); err != nil {
-		t.Fatalf("unexpected error creating database: %s", err)
-	}
+	return m.metadata()
+}
 
-	// Export the database
-	a, err := exportMgr.ExportDB()
-	if err != nil {
-		t.Fatalf("unexpected error exporting database: %s", err)
-	}
+var testErr = errors.New("error")
 
-	// Import the database to another path
-	importMgr := &manager{
-		dbDir: importDir,
-	}
-	if err := importMgr.ImportDB(a); err != nil {
-		t.Fatalf("unexpected error importing database: %s", err)
-	}
+func TestManagerUpdateDB(t *testing.T) {
+	testCases := map[string]struct {
+		setup       func(t *testing.T, dir string) Archive
+		wantData    []byte
+		wantErr     error
+		wantUpdated bool
+	}{
+		// The simple case: import the database for the first time
+		"import": {
+			setup: func(t *testing.T, dir string) Archive {
+				data := []byte("foobar")
+				h := sha256.Sum256(data)
+				return &mockArchive{
+					db: func() ([]byte, error) {
+						return data, nil
+					},
+					metadata: func() (*Metadata, error) {
+						return &Metadata{
+							SHA256: fmt.Sprintf("%x", h),
+						}, nil
+					},
+				}
+			},
+			wantData:    []byte("foobar"),
+			wantUpdated: true,
+		},
+		// Import the existing database
+		"no update required": {
+			setup: func(t *testing.T, dir string) Archive {
+				data := []byte("foobar")
+				if err := os.WriteFile(filepath.Join(dir, "tally.db"), data, os.ModePerm); err != nil {
+					t.Fatalf("unexpected error writing database file: %s", err)
+				}
+				h := sha256.Sum256(data)
+				meta := &Metadata{
+					SHA256: fmt.Sprintf("%x", h),
+				}
+				f, err := os.Create(filepath.Join(dir, "metadata.json"))
+				if err != nil {
+					t.Fatalf("unexpected error creating metadata file: %s", err)
+				}
+				defer f.Close()
+				if err := json.NewEncoder(f).Encode(meta); err != nil {
+					t.Fatalf("unexpected error writing to metadata file: %s", err)
+				}
 
-	// Ensure that the metadata of the imported database matches the
-	// exported one
-	importMetadata, err := importMgr.Metadata()
-	if err != nil {
-		t.Fatalf("unexpected error getting metadata: %s", err)
+				return &mockArchive{
+					db: func() ([]byte, error) {
+						return data, nil
+					},
+					metadata: func() (*Metadata, error) {
+						return meta, nil
+					},
+				}
+			},
+			wantData: []byte("foobar"),
+		},
+		// Import the database and overwrite an existing one
+		"overwrite": {
+			setup: func(t *testing.T, dir string) Archive {
+				oldData := []byte("barfoo")
+				if err := os.WriteFile(filepath.Join(dir, "tally.db"), oldData, os.ModePerm); err != nil {
+					t.Fatalf("unexpected error writing database file: %s", err)
+				}
+				oldHash := sha256.Sum256(oldData)
+				oldMeta := &Metadata{
+					SHA256: fmt.Sprintf("%x", oldHash),
+				}
+				f, err := os.Create(filepath.Join(dir, "metadata.json"))
+				if err != nil {
+					t.Fatalf("unexpected error creating metadata file: %s", err)
+				}
+				defer f.Close()
+				if err := json.NewEncoder(f).Encode(oldMeta); err != nil {
+					t.Fatalf("unexpected error writing to metadata file: %s", err)
+				}
+
+				// Return an archive that should overwrite the
+				// existing database
+				data := []byte("foobar")
+				h := sha256.Sum256(data)
+				return &mockArchive{
+					db: func() ([]byte, error) {
+						return data, nil
+					},
+					metadata: func() (*Metadata, error) {
+						return &Metadata{
+							SHA256: fmt.Sprintf("%x", h),
+						}, nil
+					},
+				}
+			},
+			wantData:    []byte("foobar"),
+			wantUpdated: true,
+		},
+		"metadata error": {
+			setup: func(t *testing.T, dir string) Archive {
+				return &mockArchive{
+					db: func() ([]byte, error) {
+						return nil, fmt.Errorf("unexpected call to DB")
+					},
+					metadata: func() (*Metadata, error) {
+						return nil, testErr
+					},
+				}
+			},
+			wantErr: testErr,
+		},
+		"db error": {
+			setup: func(t *testing.T, dir string) Archive {
+				h := sha256.Sum256([]byte("foobar"))
+				return &mockArchive{
+					db: func() ([]byte, error) {
+						return nil, testErr
+					},
+					metadata: func() (*Metadata, error) {
+						return &Metadata{
+							SHA256: fmt.Sprintf("%x", h),
+						}, nil
+					},
+				}
+			},
+			wantErr: testErr,
+		},
 	}
-	exportMetadata, err := exportMgr.Metadata()
-	if err != nil {
-		t.Fatalf("unexpected error getting metadata: %s", err)
-	}
-	if diff := cmp.Diff(exportMetadata, importMetadata); diff != "" {
-		t.Fatalf("unxpected metadata:\n%s", diff)
+	for n, tc := range testCases {
+		t.Run(n, func(t *testing.T) {
+			tmpDir, err := ioutil.TempDir("", "tally-test")
+			if err != nil {
+				t.Fatalf("unexpected error creating temporary directory: %s", err)
+			}
+
+			a := tc.setup(t, tmpDir)
+
+			mgr, err := NewManager(WithDir(tmpDir))
+			if err != nil {
+				t.Fatalf("unexpected error creating manager: %s", err)
+			}
+
+			gotUpdated, err := mgr.UpdateDB(a)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("expected error %v but got %v", tc.wantErr, errors.Unwrap(err))
+			}
+
+			if tc.wantErr == nil {
+				if gotUpdated != tc.wantUpdated {
+					t.Fatalf("expected updated value %t but got %t", tc.wantUpdated, gotUpdated)
+				}
+				am, err := a.Metadata()
+				if err != nil {
+					t.Fatalf("unexpected error getting archive metadata: %s", err)
+				}
+
+				m, err := mgr.Metadata()
+				if err != nil {
+					t.Fatalf("unexpected error getting manager metadata: %s", err)
+				}
+
+				if diff := cmp.Diff(am, m); diff != "" {
+					t.Fatalf("unexpected metadata:\n%s", diff)
+				}
+
+				gotData, err := ioutil.ReadFile(filepath.Join(tmpDir, "tally.db"))
+				if err != nil {
+					t.Fatalf("unexpected error reading file: %s", err)
+				}
+
+				if !cmp.Equal(tc.wantData, gotData) {
+					t.Fatalf("unexpected extracted data, wanted %q but got %q", tc.wantData, gotData)
+				}
+			}
+		})
 	}
 }
 
@@ -94,7 +236,7 @@ func TestManagerCreateDB(t *testing.T) {
 	}
 	defer os.RemoveAll(dbDir)
 
-	mgr, err := NewManager(dbDir)
+	mgr, err := NewManager(WithDir(dbDir))
 	if err != nil {
 		t.Fatalf("unexpected error creating manager: %s", err)
 	}
@@ -245,7 +387,7 @@ func TestManagerCreateDB_UpdateError(t *testing.T) {
 	}
 	defer os.RemoveAll(dbDir)
 
-	mgr, err := NewManager(dbDir)
+	mgr, err := NewManager(WithDir(dbDir))
 	if err != nil {
 		t.Fatalf("unexpected error creating manager: %s", err)
 	}
@@ -309,7 +451,7 @@ func TestManagerCreateDB_Overwrite(t *testing.T) {
 	}
 	defer os.RemoveAll(dbDir)
 
-	mgr, err := NewManager(dbDir)
+	mgr, err := NewManager(WithDir(dbDir))
 	if err != nil {
 		t.Fatalf("unexpected error creating manager: %s", err)
 	}
@@ -353,124 +495,7 @@ func TestManagerCreateDB_Overwrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error getting new metadata: %s", err)
 	}
-	if newMeta.Equal(*oldMeta) {
+	if newMeta.Equals(*oldMeta) {
 		t.Fatalf("expected metadata of overwritten database to be different, but it's the same")
-	}
-}
-
-type mockArchive struct {
-	io.ReadCloser
-	metadata func() (*Metadata, error)
-}
-
-func (m *mockArchive) Metadata() (*Metadata, error) {
-	if m.metadata == nil {
-		return nil, nil
-	}
-
-	return m.metadata()
-}
-
-func TestManagerNeedsUpdate(t *testing.T) {
-	testCases := map[string]struct {
-		newArchive  func(t *testing.T) Archive
-		metadata    []byte
-		needsUpdate bool
-		wantErr     bool
-	}{
-		"needs update": {
-			newArchive: func(t *testing.T) Archive {
-				return &mockArchive{
-					ReadCloser: ioutil.NopCloser(bytes.NewBuffer([]byte("foobar"))),
-					metadata: func() (*Metadata, error) {
-						return &Metadata{
-							Hash: "foobar",
-						}, nil
-					},
-				}
-			},
-			metadata:    []byte(`{"hash":"notfoobar"}`),
-			needsUpdate: true,
-		},
-		"needs update nil": {
-			newArchive: func(t *testing.T) Archive {
-				return &mockArchive{
-					ReadCloser: ioutil.NopCloser(bytes.NewBuffer([]byte("foobar"))),
-					metadata: func() (*Metadata, error) {
-						return &Metadata{
-							Hash: "foobar",
-						}, nil
-					},
-				}
-			},
-			needsUpdate: true,
-		},
-		"doesn't need update": {
-			newArchive: func(t *testing.T) Archive {
-				return &mockArchive{
-					ReadCloser: ioutil.NopCloser(bytes.NewBuffer([]byte("foobar"))),
-					metadata: func() (*Metadata, error) {
-						return &Metadata{
-							Hash: "foobar",
-						}, nil
-					},
-				}
-			},
-			metadata: []byte(`{"hash":"foobar"}`),
-		},
-		"archive error": {
-			newArchive: func(t *testing.T) Archive {
-				return &mockArchive{
-					ReadCloser: ioutil.NopCloser(bytes.NewBuffer([]byte("foobar"))),
-					metadata: func() (*Metadata, error) {
-						return nil, errors.New("error")
-					},
-				}
-			},
-			wantErr: true,
-		},
-		"metadata error": {
-			newArchive: func(t *testing.T) Archive {
-				return &mockArchive{
-					ReadCloser: ioutil.NopCloser(bytes.NewBuffer([]byte("foobar"))),
-					metadata: func() (*Metadata, error) {
-						return &Metadata{
-							Hash: "foobar",
-						}, nil
-					},
-				}
-			},
-			metadata: []byte(`notjson`),
-			wantErr:  true,
-		},
-	}
-
-	for n, tc := range testCases {
-		t.Run(n, func(t *testing.T) {
-			tmpDir, err := ioutil.TempDir("", "tally-test")
-			if err != nil {
-				t.Fatalf("unexpected error creating temporary directory: %s", err)
-			}
-
-			if len(tc.metadata) > 0 {
-				if err := os.WriteFile(filepath.Join(tmpDir, "metadata.json"), tc.metadata, os.ModePerm); err != nil {
-					t.Fatalf("unexpected error creating metadata file: %s", err)
-				}
-			}
-
-			mgr := &manager{tmpDir}
-
-			needsUpdate, err := mgr.NeedsUpdate(tc.newArchive(t))
-			if err != nil && !tc.wantErr {
-				t.Fatalf("unexpected error running NeedsUpdate: %s", err)
-			}
-			if err == nil && tc.wantErr {
-				t.Fatalf("expected error but got nil")
-			}
-
-			if needsUpdate != tc.needsUpdate {
-				t.Fatalf("expected %t but got %t", tc.needsUpdate, needsUpdate)
-			}
-		})
 	}
 }
