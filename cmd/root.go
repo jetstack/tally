@@ -15,7 +15,7 @@ import (
 	"github.com/jetstack/tally/internal/db/local"
 	"github.com/jetstack/tally/internal/db/local/oci"
 	"github.com/jetstack/tally/internal/output"
-	"github.com/jetstack/tally/internal/tally"
+	"github.com/jetstack/tally/internal/scorecard"
 	"github.com/jetstack/tally/internal/types"
 	"github.com/spf13/cobra"
 )
@@ -171,6 +171,7 @@ var rootCmd = &cobra.Command{
 
 		// Try and find any missing scores from the BigQuery dataset, if
 		// it's configured.
+		// TODO: support checks
 		if bqDB != nil {
 			// Find repositories without scores
 			var repos []string
@@ -218,9 +219,9 @@ var rootCmd = &cobra.Command{
 			for _, repo := range repos {
 				// Attempt to generate a score
 				fmt.Fprintf(os.Stderr, "Generating missing score for %s...\n", repo)
-				score, err := tally.GenerateScore(ctx, repo)
+				score, err := scorecard.GenerateScore(ctx, repo)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error generating score: %s\n", err)
+					fmt.Fprintf(os.Stderr, "Warning, couldn't generate score for %s: %s\n", repo, err)
 					continue
 				}
 
@@ -229,17 +230,16 @@ var rootCmd = &cobra.Command{
 					if result.Repository != repo {
 						continue
 					}
-					results[i].Score = &types.Score{
-						Score: score,
-					}
+					results[i].Score = score
 				}
 
 				// Add the score to the private dataset, if it's
 				// configured
+				// TODO: support checks
 				if bqDB != nil {
 					if err := bqDB.AddScores(ctx, db.Score{
 						Repository: repo,
-						Score:      score,
+						Score:      score.Score,
 					}); err != nil {
 						return fmt.Errorf("adding score to dataset: %w", err)
 					}
