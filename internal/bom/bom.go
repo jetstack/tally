@@ -28,6 +28,10 @@ var Formats = []Format{
 	FormatSyftJSON,
 }
 
+var (
+	ErrUnsupportedPackageType = errors.New("unsupported package type")
+)
+
 // PackagesFromBOM extracts packages from a supported SBOM format
 func PackagesFromBOM(r io.Reader, format Format) ([]types.Package, error) {
 	switch format {
@@ -139,8 +143,6 @@ func packagesFromSyftJSON(r io.Reader) ([]types.Package, error) {
 
 	return pkgs, nil
 }
-
-var ErrUnsupportedPackageType = errors.New("unsupported package type")
 
 func packageFromPurl(purl packageurl.PackageURL) (types.Package, error) {
 	switch purl.Type {
