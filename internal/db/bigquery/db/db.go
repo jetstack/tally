@@ -6,18 +6,18 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/jetstack/tally/internal/db"
 	"google.golang.org/api/googleapi"
 )
 
-type database struct {
+// DB is a database implementation that stores scores in a bigquery dataset
+type DB struct {
 	bq         *bigquery.Client
 	dataset    *bigquery.Dataset
 	scoreTable *bigquery.Table
 }
 
 // NewDB returns a database that stores scores in a bigquery dataset
-func NewDB(ctx context.Context, bq *bigquery.Client, ref string) (db.ScoreDB, error) {
+func NewDB(ctx context.Context, bq *bigquery.Client, ref string) (*DB, error) {
 	parts := strings.Split(ref, ".")
 	if len(parts) == 1 {
 		projectID := bq.Project()
@@ -26,7 +26,7 @@ func NewDB(ctx context.Context, bq *bigquery.Client, ref string) (db.ScoreDB, er
 		}
 		dataset := bq.DatasetInProject(projectID, parts[0])
 		scoreTable := dataset.Table("scorecard")
-		return &database{
+		return &DB{
 			dataset:    dataset,
 			scoreTable: scoreTable,
 			bq:         bq,
@@ -35,7 +35,7 @@ func NewDB(ctx context.Context, bq *bigquery.Client, ref string) (db.ScoreDB, er
 	if len(parts) == 3 {
 		dataset := bq.DatasetInProject(parts[0], parts[1])
 		scoreTable := dataset.Table("scorecard")
-		return &database{
+		return &DB{
 			dataset:    dataset,
 			scoreTable: scoreTable,
 			bq:         bq,
@@ -46,7 +46,7 @@ func NewDB(ctx context.Context, bq *bigquery.Client, ref string) (db.ScoreDB, er
 }
 
 // Initialize creates the dataset
-func (d *database) Initialize(ctx context.Context) error {
+func (d *DB) Initialize(ctx context.Context) error {
 	// Create the dataset
 	if err := createDataset(ctx, d.dataset); err != nil {
 		return fmt.Errorf("creating dataset: %w", err)
@@ -61,11 +61,6 @@ func (d *database) Initialize(ctx context.Context) error {
 		return fmt.Errorf("creating scorecard table: %w", err)
 	}
 
-	return nil
-}
-
-// Close
-func (d *database) Close() error {
 	return nil
 }
 

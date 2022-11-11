@@ -1,4 +1,4 @@
-package local
+package manager
 
 import (
 	"testing"

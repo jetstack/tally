@@ -19,7 +19,7 @@ type scoreRepo struct {
 }
 
 // GetScores from the dataset
-func (d *database) GetScores(ctx context.Context, repos ...string) ([]db.Score, error) {
+func (d *DB) GetScores(ctx context.Context, repos ...string) ([]db.Score, error) {
 	// TODO: remove duplicates by selecting the latest row
 	q := fmt.Sprintf(`
         SELECT repo, score
@@ -58,7 +58,7 @@ func (d *database) GetScores(ctx context.Context, repos ...string) ([]db.Score, 
 }
 
 // AddScores to the dataset
-func (d *database) AddScores(ctx context.Context, scores ...db.Score) error {
+func (d *DB) AddScores(ctx context.Context, scores ...db.Score) error {
 	var r []*scoreRow
 
 	for _, score := range scores {

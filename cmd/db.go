@@ -7,12 +7,9 @@ import (
 
 	"cloud.google.com/go/bigquery"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/jetstack/tally/internal/db"
 	bqsrc "github.com/jetstack/tally/internal/db/bigquery/source"
-	"github.com/jetstack/tally/internal/db/local"
-	"github.com/jetstack/tally/internal/db/local/oci"
+	"github.com/jetstack/tally/internal/manager"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +45,7 @@ var dbCreateCmd = &cobra.Command{
 			return fmt.Errorf("creating big query client: %w", err)
 		}
 
-		mgr, err := local.NewManager(local.WithWriter(os.Stderr))
+		mgr, err := manager.NewManager(manager.WithWriter(os.Stderr))
 		if err != nil {
 			return fmt.Errorf("creating database manager: %w", err)
 		}
@@ -75,24 +72,12 @@ var dbPullCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
-		mgr, err := local.NewManager(local.WithWriter(os.Stderr))
+		mgr, err := manager.NewManager(manager.WithWriter(os.Stderr))
 		if err != nil {
 			return fmt.Errorf("creating database manager: %w", err)
 		}
 
-		opts := []oci.Option{
-			oci.WithProgressBarWriter(os.Stderr),
-			oci.WithRemoteOptions(
-				remote.WithContext(ctx),
-				remote.WithAuthFromKeychain(authn.DefaultKeychain),
-			),
-		}
-		archive, err := oci.GetArchive(args[0], opts...)
-		if err != nil {
-			return fmt.Errorf("fetching archive: %w", err)
-		}
-
-		updated, err := mgr.UpdateDB(archive)
+		updated, err := mgr.PullDB(ctx, args[0])
 		if err != nil {
 			return fmt.Errorf("importing database: %w", err)
 		}

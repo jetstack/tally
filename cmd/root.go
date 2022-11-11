@@ -7,13 +7,10 @@ import (
 	"os"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/db"
 	bqdb "github.com/jetstack/tally/internal/db/bigquery/db"
-	"github.com/jetstack/tally/internal/db/local"
-	"github.com/jetstack/tally/internal/db/local/oci"
+	"github.com/jetstack/tally/internal/manager"
 	"github.com/jetstack/tally/internal/output"
 	"github.com/jetstack/tally/internal/scorecard"
 	"github.com/jetstack/tally/internal/types"
@@ -47,7 +44,7 @@ var rootCmd = &cobra.Command{
 		ctx := context.Background()
 
 		// Setup private BigQuery dataset
-		var bqDB db.ScoreDB
+		var bqDB *bqdb.DB
 		if ro.Dataset != "" {
 			if ro.ProjectID == "" {
 				return fmt.Errorf("must set --project-id with --dataset")
@@ -74,25 +71,14 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("creating output writer: %w", err)
 		}
 
-		mgr, err := local.NewManager(local.WithWriter(os.Stderr))
+		mgr, err := manager.NewManager(manager.WithWriter(os.Stderr))
 		if err != nil {
 			return fmt.Errorf("creating database manager: %w", err)
 		}
 
 		// Update the database, if there's a new version available
 		if ro.CheckForUpdate {
-			opts := []oci.Option{
-				oci.WithProgressBarWriter(os.Stderr),
-				oci.WithRemoteOptions(
-					remote.WithContext(ctx),
-					remote.WithAuthFromKeychain(authn.DefaultKeychain),
-				),
-			}
-			archive, err := oci.GetArchive(ro.DBRef, opts...)
-			if err != nil {
-				return fmt.Errorf("fetching archive: %w", err)
-			}
-			updated, err := mgr.UpdateDB(archive)
+			updated, err := mgr.PullDB(ctx, ro.DBRef)
 			if err != nil {
 				return fmt.Errorf("importing database: %w", err)
 			}
