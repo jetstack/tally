@@ -6,14 +6,9 @@ in a Software Bill of Materials.
 ⚠️ This tool is currently under active development. There will be breaking changes
 and how it works may change significantly as it matures.
 
-## How it works
+## Package types
 
-This tool queries the public BigQuery [deps.dev](https://deps.dev/data) and
-[OpenSSF](https://github.com/ossf/scorecard#public-data) datasets in order to
-associate components with Scorecard projects.
-
-As such, it only supports the package types supported by
-[deps.dev](https://deps.dev/):
+It currently supports the following package types:
 
 - NPM
 - Go
@@ -27,15 +22,10 @@ As such, it only supports the package types supported by
 
 Generate an SBOM in CycloneDX JSON format and then scan it with `tally`.
 
-The datasets are public but you must still provide a valid Google Cloud project
-that you have access to with the `--project-id/-p` flag.
-
 ```
 $ syft prom/prometheus -o cyclonedx-json > bom.json
-$ tally -p my-gcp-project-id bom.json
+$ tally bom.json
 Found 150 supported packages in BOM
-Fetching repository information from deps.dev dataset...
-Fetching scores from OpenSSF scorecard dataset...
 REPOSITORY                            SCORE
 github.com/googleapis/google-cloud-go 9.3
 github.com/imdario/mergo              9.1
@@ -49,13 +39,12 @@ github.com/googleapis/go-genproto     7.9
 You could also pipe the BOM directly to `tally`:
 
 ```
-$ syft prom/prometheus -o cyclonedx-json | tally -p my-gcp-project -
+$ syft prom/prometheus -o cyclonedx-json | tally -
 ```
 
 ### Generate missing scores
 
-Not all the repositories in the deps.dev dataset have corresponding scores in
-the scorecard dataset.
+Some repositories don't have scorecard scores.
 
 Tally will generate missing scores itself when the `-g/--generate` flag is set.
 
@@ -64,10 +53,8 @@ token.
 
 ```
 $ export GITHUB_TOKEN=<token>
-$ tally -p my-gcp-project-id -g bom.json
+$ tally -g bom.json
 Found 150 supported packages in BOM
-Fetching repository information from deps.dev dataset...
-Fetching scores from OpenSSF scorecard dataset...
 Generating missing scores...
 ```
 
@@ -76,10 +63,10 @@ Generating missing scores...
 Generation can take a while, depending on the number of missing scores. To speed
 up subsequent invocations, `tally` supports saving scores to a BigQuery dataset.
 
-Specify a dataset in your project with the `-d/--dataset` flag:
+Specify a dataset in your project with the `-p/--project-id` and `-d/--dataset` flags:
 
 ```
-$ tally -p my-gcp-project-id -g -d 'tally' bom.json
+$ tally -g -p my-gcp-project-id -d 'tally' bom.json
 ```
 
 If it doesn't already exists, `tally` will create the dataset with the required
@@ -94,7 +81,7 @@ The return code will be set to 1 when a score is identified that is less than
 or equal to the value of `--fail-on`:
 
 ```
-$ tally -p my-gcp-project --fail-on 3.5 bom.json
+$ tally --fail-on 3.5 bom.json
 ...
 error: found scores <= to 3.50
 exit status 1
@@ -114,43 +101,55 @@ REPOSITORY                            SCORE
 github.com/googleapis/google-cloud-go 9.3
 ```
 
-The `wide` output format will print additional package information, as well as
-the date the score was generated:
-
+The `wide` output format will print additional package information:
 ```
-SYSTEM PACKAGE                     VERSION REPOSITORY                            SCORE DATE
-go     cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3   2022-06-27
+SYSTEM PACKAGE                     VERSION REPOSITORY                            SCORE
+GO     cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3
 ```
 
-The `json` output will print the full output in JSON format:
+The `json` output will print the full output in JSON format, including the
+individual check scores:
 
 ```
+$ tally -o json bom.json | jq -r .
 [
   {
-    "type": "go",
-    "name": "cloud.google.com/go/compute",
-    "version": "v1.3.0",
-    "repository": "github.com/googleapis/google-cloud-go",
-    "score": 9.3,
-    "date": "2022-06-27"
+    "packageSystem": "MAVEN",
+    "packageName": "com.google.http-client:google-http-client-jackson2",
+    "repository": "github.com/googleapis/google-http-java-client",
+    "score": {
+      "score": 7.9,
+      "checks": {
+        "Binary-Artifacts": 10,
+        "Branch-Protection": 8,
+        "CII-Best-Practices": 0,
+        "Code-Review": 10,
+        "Dangerous-Workflow": 10,
+        "Dependency-Update-Tool": 10,
+        "Fuzzing": 0,
+        "License": 10,
+        "Maintained": 10,
+        "Packaging": 0,
+        "Pinned-Dependencies": 9,
+        "SAST": 0,
+        "Security-Policy": 10,
+        "Signed-Releases": 0,
+        "Token-Permissions": 0,
+        "Vulnerabilities": 10
+      }
+    }
   },
   ...
 ]
 ```
 
-### Print all packages
+### Print all
 
 Not all packages will have a Scorecard score.
 
-This is typically because the package's repository is either:
+By default, `tally` will remove results without a score from the output.
 
-- Not in the deps.dev dataset
-- Not in the Scorecard dataset
-- Not hosted on Github
-
-By default, `tally` will remove packages without a score from the output.
-
-You can include all packages, regardless of whether they have a score or not, by
+You can include all results, regardless of whether they have a score or not, by
 specifying the `-a/--all` flag.
 
 ### BOM formats
@@ -162,3 +161,14 @@ The supported SBOM formats are:
 - `cyclonedx-json`
 - `cyclonedx-xml`
 - `syft-json`
+
+## Database
+
+When `tally` runs for the first time, it pulls down a database from
+`ghcr.io/jetstack/tally/db:latest` and caches it locally, typically in
+`~/.cache/tally/db`.
+
+It uses the data in this database to associate Scorecard scores with packages.
+
+Every time `tally` runs it will check for a new version of the database and pull
+it down if it finds one.
