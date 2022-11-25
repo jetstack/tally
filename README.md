@@ -44,9 +44,9 @@ $ syft prom/prometheus -o cyclonedx-json | tally -
 
 ### Generate missing scores
 
-Some repositories don't have scorecard scores.
-
-Tally will generate missing scores itself when the `-g/--generate` flag is set.
+Tally may not have scores in its database for every discovered repository but
+it can generate these missing scores itself when the `-g/--generate` flag is
+set.
 
 This requires that the `GITHUB_TOKEN` environment variable is set to a valid
 token.
@@ -58,22 +58,7 @@ Found 150 supported packages in BOM
 Generating missing scores...
 ```
 
-### Store generated scores in BigQuery
-
-Generation can take a while, depending on the number of missing scores. To speed
-up subsequent invocations, `tally` supports saving scores to a BigQuery dataset.
-
-Specify a dataset in your project with the `-p/--project-id` and `-d/--dataset` flags:
-
-```
-$ tally -g -p my-gcp-project-id -d 'tally' bom.json
-```
-
-If it doesn't already exists, `tally` will create the dataset with the required
-tables.
-
-When `-d/--dataset` is set without `-g/--generate`, `tally` will query the
-dataset for existing scores but won't generate any new ones.
+This may take a while, depending on the number of missing scores.
 
 ### Fail on low scores
 

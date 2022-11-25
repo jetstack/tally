@@ -6,10 +6,8 @@ import (
 	"io"
 	"os"
 
-	"cloud.google.com/go/bigquery"
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/db"
-	bqdb "github.com/jetstack/tally/internal/db/bigquery/db"
 	"github.com/jetstack/tally/internal/manager"
 	"github.com/jetstack/tally/internal/output"
 	"github.com/jetstack/tally/internal/scorecard"
@@ -20,13 +18,11 @@ import (
 type rootOptions struct {
 	All            bool
 	CheckForUpdate bool
-	Dataset        string
 	DBRef          string
 	FailOn         float64Flag
 	Format         string
 	GenerateScores bool
 	Output         string
-	ProjectID      string
 }
 
 var ro rootOptions
@@ -42,25 +38,6 @@ var rootCmd = &cobra.Command{
 		}
 
 		ctx := context.Background()
-
-		// Setup private BigQuery dataset
-		var bqDB *bqdb.DB
-		if ro.Dataset != "" {
-			if ro.ProjectID == "" {
-				return fmt.Errorf("must set --project-id with --dataset")
-			}
-			bq, err := bigquery.NewClient(ctx, ro.ProjectID)
-			if err != nil {
-				return fmt.Errorf("creating bigquery client: %w", err)
-			}
-			bqDB, err = bqdb.NewDB(ctx, bq, ro.Dataset)
-			if err != nil {
-				return fmt.Errorf("creating new bigquery db: %w", err)
-			}
-			if err := bqDB.Initialize(ctx); err != nil {
-				return fmt.Errorf("initializing bigquery db: %w", err)
-			}
-		}
 
 		// Configure the output writer
 		out, err := output.NewOutput(
@@ -155,38 +132,6 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		// Try and find any missing scores from the BigQuery dataset, if
-		// it's configured.
-		// TODO: support checks
-		if bqDB != nil {
-			// Find repositories without scores
-			var repos []string
-			for _, result := range results {
-				if result.Repository == "" || result.Score != nil {
-					continue
-				}
-				repos = append(repos, result.Repository)
-			}
-
-			if len(repos) > 0 {
-				fmt.Fprintf(os.Stderr, "Fetching scores from dataset %q...\n", ro.Dataset)
-				scores, err := bqDB.GetScores(ctx, repos...)
-				if err != nil && err != db.ErrNotFound {
-					return fmt.Errorf("getting scores from private dataset: %w", err)
-				}
-				for _, score := range scores {
-					for i, result := range results {
-						if result.Repository != score.Repository {
-							continue
-						}
-						results[i].Score = &types.Score{
-							Score: score.Score,
-						}
-					}
-				}
-			}
-		}
-
 		// Generate any missing scores
 		if ro.GenerateScores {
 			// Find repositories without scores
@@ -217,18 +162,6 @@ var rootCmd = &cobra.Command{
 						continue
 					}
 					results[i].Score = score
-				}
-
-				// Add the score to the private dataset, if it's
-				// configured
-				// TODO: support checks
-				if bqDB != nil {
-					if err := bqDB.AddScores(ctx, db.Score{
-						Repository: repo,
-						Score:      score.Score,
-					}); err != nil {
-						return fmt.Errorf("adding score to dataset: %w", err)
-					}
 				}
 			}
 		}
@@ -299,12 +232,10 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&ro.ProjectID, "project-id", "p", "", "Google Cloud project that Big Query requests are billed against")
 	rootCmd.Flags().StringVarP(&ro.Format, "format", "f", string(bom.FormatCycloneDXJSON), fmt.Sprintf("BOM format, options=%s", bom.Formats))
 	rootCmd.Flags().BoolVarP(&ro.All, "all", "a", false, "print all packages, even those without a scorecard score")
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", output.Formats))
-	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the public dataset. The GITHUB_TOKEN environment variable must be set.")
-	rootCmd.Flags().StringVarP(&ro.Dataset, "dataset", "d", "", "dataset for generated scores")
+	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the database. The GITHUB_TOKEN environment variable must be set.")
 	rootCmd.Flags().BoolVar(&ro.CheckForUpdate, "check-for-update", true, "check for database update")
 	rootCmd.Flags().StringVar(&ro.DBRef, "db-reference", "ghcr.io/jetstack/tally/db:latest", "image reference to download database from")
 	rootCmd.Flags().Var(&ro.FailOn, "fail-on", "fail if a package is found with a score <= to the given value")
