@@ -1,0 +1,6 @@
+defaultBaseImage: gcr.io/distroless/base:nonroot
+
+builds:
+- id: tally
+  env:
+    - CGO_ENABLED=1
