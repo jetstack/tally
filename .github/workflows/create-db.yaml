@@ -1,7 +1,7 @@
 on:
   schedule:
     # Tuesday at 2AM UTC
-    - cron: '0 2 * * 2'
+    - cron: "0 2 * * 2"
   workflow_dispatch:
 
 env:
@@ -35,7 +35,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: "^1.19.3"
+          go-version: 1.19.x
           cache: true
 
       - name: Create DB
