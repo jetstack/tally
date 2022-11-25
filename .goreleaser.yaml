@@ -1,0 +1,18 @@
+builds:
+  - binary: tally
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    flags:
+      - -v
+release:
+  github:
+    owner: jetstack
+    name: tally
