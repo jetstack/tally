@@ -1,7 +1,10 @@
+env:
+  - COSIGN_EXPERIMENTAL=true
 builds:
-  - binary: tally
+  - id: tally-build
+    binary: tally
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - linux
       - darwin
@@ -12,6 +15,12 @@ builds:
       - arm64
     flags:
       - -v
+signs:
+  - id: tally-cosign
+    cmd: cosign
+    certificate: "${artifact}.crt"
+    args: ["sign-blob", "--output-signature", "${signature}", "--output-certificate", "${certificate}", "${artifact}"]
+    artifacts: all
 release:
   github:
     owner: jetstack
