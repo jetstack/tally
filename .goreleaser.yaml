@@ -1,25 +1,51 @@
 env:
   - COSIGN_EXPERIMENTAL=true
 builds:
-  - id: tally-build
+  - id: linux
     binary: tally
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
     goos:
       - linux
-      - darwin
-      - windows
     goarch:
       - amd64
       - arm
       - arm64
     flags:
       - -v
+  - id: darwin
+    binary: tally
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -v
+  - id: windows
+    binary: tally
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -v
 signs:
-  - id: tally-cosign
+  - id: cosign
     cmd: cosign
     certificate: "${artifact}.crt"
-    args: ["sign-blob", "--output-signature", "${signature}", "--output-certificate", "${certificate}", "${artifact}"]
+    args:
+      - "sign-blob"
+      - "--output-signature"
+      - "${signature}"
+      - "--output-certificate"
+      - "${certificate}"
+      - "${artifact}"
     artifacts: all
 release:
   github:

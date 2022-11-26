@@ -7,7 +7,7 @@ import (
 
 	"github.com/jetstack/tally/internal/db"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // Option is a functional option that configures the database
@@ -27,7 +27,7 @@ type database struct {
 
 // NewDB returns a new database at the provided path
 func NewDB(dbPath string, opts ...Option) (db.DB, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, err
 	}

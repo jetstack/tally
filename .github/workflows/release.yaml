@@ -16,6 +16,9 @@ jobs:
       - name: Unshallow
         run: git fetch --prune --unshallow
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b
+
       - name: Install Go
         uses: actions/setup-go@v3
         with:
@@ -64,5 +67,5 @@ jobs:
 
       - name: Build
         run: |
-          img=$(ko build --bare -t ${{ github.ref_name }} --platform=all --sbom=cyclonedx)
+          img=$(ko build --bare -t ${{ github.ref_name }} --platform=linux/amd64,linux/arm64,linux/arm --sbom=cyclonedx)
           cosign sign ${img}
