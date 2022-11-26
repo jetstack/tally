@@ -160,10 +160,17 @@ func packageFromPurl(purl packageurl.PackageURL) (types.Package, error) {
 		if purl.Namespace != "" {
 			name = purl.Namespace + "/" + purl.Name
 		}
-		return types.Package{
+		pkg := types.Package{
 			System: "GO",
 			Name:   name,
-		}, nil
+		}
+		if strings.HasPrefix(pkg.Name, "github.com/") {
+			parts := strings.Split(pkg.Name, "/")
+			if len(parts) >= 3 {
+				pkg.Repositories = append(pkg.Repositories, strings.Join([]string{parts[0], parts[1], parts[2]}, "/"))
+			}
+		}
+		return pkg, nil
 	case packageurl.TypeMaven:
 		return types.Package{
 			System: "MAVEN",

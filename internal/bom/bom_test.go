@@ -64,6 +64,18 @@ var testCycloneDXJSON = []byte(`
       "type": "library",
       "name": "zope.interface",
       "purl": "pkg:pypi/zope.interface@5.4.0"
+    },
+    {
+      "bom-ref": "7",
+      "type": "library",
+      "name": "bar",
+      "purl": "pkg:golang/github.com/foo/bar@v0.0.1"
+    },
+    {
+      "bom-ref": "8",
+      "type": "library",
+      "name": "baz",
+      "purl": "pkg:golang/github.com/foo/bar/v2/baz@v0.1.0"
     }
   ]
 }
@@ -106,6 +118,14 @@ var testCycloneDXXML = []byte(`
     <component type="library" bom-ref="6">
       <name>zope.interface</name>
       <purl>pkg:pypi/zope.interface@5.4.0</purl>
+    </component>
+    <component type="library" bom-ref="7">
+      <name>bar</name>
+      <purl>pkg:golang/github.com/foo/bar@v0.0.1</purl>
+    </component>
+    <component type="library" bom-ref="8">
+      <name>bar</name>
+      <purl>pkg:golang/github.com/foo/bar/v2/baz@v0.1.0</purl>
     </component>
   </components>
 </bom>
@@ -152,6 +172,16 @@ var testSyftJSON = []byte(`
       "id": "7",
       "name": "zope.interface",
       "purl": "pkg:pypi/zope.interface@5.4.0"
+    },
+    {
+      "id": "8",
+      "name": "bar",
+      "purl": "pkg:golang/github.com/foo/bar@v0.0.1"
+    },
+    {
+      "bom-ref": "9",
+      "name": "baz",
+      "purl": "pkg:golang/github.com/foo/bar/v2/baz@v0.1.0"
     }
   ]
 }
@@ -192,6 +222,20 @@ func TestPackagesFromBOM(t *testing.T) {
 					System: "PYPI",
 					Name:   "zope.interface",
 				},
+				{
+					System: "GO",
+					Name:   "github.com/foo/bar",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+				{
+					System: "GO",
+					Name:   "github.com/foo/bar/v2/baz",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
 			},
 		},
 		"cyclonedx-json: returns error when input is cyclonedx xml": {
@@ -227,6 +271,20 @@ func TestPackagesFromBOM(t *testing.T) {
 					System: "PYPI",
 					Name:   "zope.interface",
 				},
+				{
+					System: "GO",
+					Name:   "github.com/foo/bar",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+				{
+					System: "GO",
+					Name:   "github.com/foo/bar/v2/baz",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
 			},
 		},
 		"cyclonedx-xml: returns error when input is cyclonedx json": {
@@ -261,6 +319,20 @@ func TestPackagesFromBOM(t *testing.T) {
 				{
 					System: "PYPI",
 					Name:   "zope.interface",
+				},
+				{
+					System: "GO",
+					Name:   "github.com/foo/bar",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+				{
+					System: "GO",
+					Name:   "github.com/foo/bar/v2/baz",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
 				},
 			},
 		},
