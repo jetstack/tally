@@ -20,7 +20,13 @@ var testCycloneDXJSON = []byte(`
       "type": "application",
       "name": "foo/bar",
       "version": "v0.2.5",
-      "purl": "pkg:golang/foo/bar@v0.2.5"
+      "purl": "pkg:golang/foo/bar@v0.2.5",
+      "externalReferences": [
+        {
+	  "type": "vcs",
+	  "url": "https://github.com/foo/bar"
+	}
+      ]
     }
   },
   "components": [
@@ -69,13 +75,31 @@ var testCycloneDXJSON = []byte(`
       "bom-ref": "7",
       "type": "library",
       "name": "bar",
-      "purl": "pkg:golang/github.com/foo/bar@v0.0.1"
+      "purl": "pkg:golang/github.com/foo/bar@v0.0.1",
+      "externalReferences": [
+        {
+	  "type": "vcs",
+	  "url": "git@github.com/foo/bar.git"
+	}
+      ]
     },
     {
       "bom-ref": "8",
       "type": "library",
       "name": "baz",
       "purl": "pkg:golang/github.com/foo/bar/v2/baz@v0.1.0"
+    },
+    {
+      "bom-ref": "9",
+      "type": "library",
+      "name": "foo/bar",
+      "purl": "pkg:golang/foo/bar@v0.2.5",
+      "externalReferences": [
+        {
+	  "type": "vcs",
+	  "url": "https://github.com/bar/foo"
+	}
+      ]
     }
   ]
 }
@@ -89,6 +113,11 @@ var testCycloneDXXML = []byte(`
       <name>foo/bar</name>
       <version>v0.2.5</version>
       <purl>pkg:golang/foo/bar@v0.2.5</purl>
+      <externalReferences>
+        <reference type="vcs">
+          <url>https://github.com/foo/bar</url>
+        </reference>
+      </externalReferences>
     </component>
   </metadata>
   <components>
@@ -122,10 +151,24 @@ var testCycloneDXXML = []byte(`
     <component type="library" bom-ref="7">
       <name>bar</name>
       <purl>pkg:golang/github.com/foo/bar@v0.0.1</purl>
+      <externalReferences>
+        <reference type="vcs">
+          <url>git@github.com/foo/bar.git</url>
+        </reference>
+      </externalReferences>
     </component>
     <component type="library" bom-ref="8">
-      <name>bar</name>
+      <name>baz</name>
       <purl>pkg:golang/github.com/foo/bar/v2/baz@v0.1.0</purl>
+    </component>
+    <component type="library" bom-ref="9">
+      <name>foo/bar</name>
+      <purl>pkg:golang/foo/bar@v0.2.5</purl>
+      <externalReferences>
+        <reference type="vcs">
+          <url>https://github.com/bar/foo</url>
+        </reference>
+      </externalReferences>
     </component>
   </components>
 </bom>
@@ -191,16 +234,20 @@ func TestPackagesFromBOM(t *testing.T) {
 	testCases := map[string]struct {
 		data     []byte
 		format   Format
-		wantPkgs []types.Package
+		wantPkgs types.Packages
 		wantErr  bool
 	}{
 		"cyclonedx-json: detect expected packages": {
 			data:   testCycloneDXJSON,
 			format: FormatCycloneDXJSON,
-			wantPkgs: []types.Package{
+			wantPkgs: types.Packages{
 				{
 					System: "GO",
 					Name:   "foo/bar",
+					Repositories: []string{
+						"github.com/foo/bar",
+						"github.com/bar/foo",
+					},
 				},
 				{
 					System: "MAVEN",
@@ -246,10 +293,14 @@ func TestPackagesFromBOM(t *testing.T) {
 		"cyclonedx-xml: detect expected packages": {
 			data:   testCycloneDXXML,
 			format: FormatCycloneDXXML,
-			wantPkgs: []types.Package{
+			wantPkgs: types.Packages{
 				{
 					System: "GO",
 					Name:   "foo/bar",
+					Repositories: []string{
+						"github.com/foo/bar",
+						"github.com/bar/foo",
+					},
 				},
 				{
 					System: "MAVEN",
@@ -295,7 +346,7 @@ func TestPackagesFromBOM(t *testing.T) {
 		"syft-json: detect expected packages": {
 			data:   testSyftJSON,
 			format: FormatSyftJSON,
-			wantPkgs: []types.Package{
+			wantPkgs: types.Packages{
 				{
 					System: "GO",
 					Name:   "foo/bar",
@@ -356,5 +407,140 @@ func TestPackagesFromBOM(t *testing.T) {
 				t.Fatalf("unexpected packages:\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestParseGithubURL(t *testing.T) {
+	testCases := []struct {
+		url      string
+		wantRepo string
+		wantErr  bool
+	}{
+		{
+			url:      "https://github.com/foo/bar",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar/tree/main/baz",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar#baz",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar/",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar.git",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar.git/",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar.git?ref=baz",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar.git?ref=baz",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar?ref=something",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "https://github.com/foo/bar#something",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git://github.com/foo/bar",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git://github.com/foo/bar",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git://github.com/foo/bar/",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git://github.com/foo/bar.git",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git://github.com/foo/bar.git/",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git://github.com/foo/bar.git?ref=baz",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git://github.com/foo/bar?ref=something",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git://github.com/foo/bar#something",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git@github.com:foo/bar.git",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git@github.com:foo/bar.git",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git@github.com:foo/bar.git/",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git@github.com:foo/bar.git?ref=something",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:      "git@github.com:foo/bar.git#something",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
+			url:     "https://github.com/foo",
+			wantErr: true,
+		},
+		{
+			url:     "https://gitlab.com/foo/bar",
+			wantErr: true,
+		},
+
+		{
+			url:     "git://gitlab.com/foo/bar.git",
+			wantErr: true,
+		},
+		{
+			url:     "git@gitlab.com:foo/bar.git",
+			wantErr: true,
+		},
+		{
+			url:     "github.com",
+			wantErr: true,
+		},
+	}
+	for _, tc := range testCases {
+		gotRepo, err := parseGithubURL(tc.url)
+		if err != nil && !tc.wantErr {
+			t.Fatalf("unexpected error parsing %q: %s", tc.url, err)
+		}
+		if err == nil && tc.wantErr {
+			t.Fatalf("expected error but got nil")
+		}
+
+		if gotRepo != tc.wantRepo {
+			t.Fatalf("unexpected repo parsing %q; got %q but wanted %q", tc.url, gotRepo, tc.wantRepo)
+		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/CycloneDX/cyclonedx-go"
@@ -33,7 +34,7 @@ var (
 )
 
 // PackagesFromBOM extracts packages from a supported SBOM format
-func PackagesFromBOM(r io.Reader, format Format) ([]types.Package, error) {
+func PackagesFromBOM(r io.Reader, format Format) (types.Packages, error) {
 	switch format {
 	case FormatCycloneDXJSON:
 		return packagesFromCycloneDX(r, cyclonedx.BOMFileFormatJSON)
@@ -46,13 +47,13 @@ func PackagesFromBOM(r io.Reader, format Format) ([]types.Package, error) {
 	}
 }
 
-func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]types.Package, error) {
+func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) (types.Packages, error) {
 	cdxBOM := &cyclonedx.BOM{}
 	if err := cyclonedx.NewBOMDecoder(r, format).Decode(cdxBOM); err != nil {
 		return nil, fmt.Errorf("decoding cyclonedx BOM: %w", err)
 	}
 	var (
-		pkgs       []types.Package
+		pkgs       types.Packages
 		components []cyclonedx.Component
 	)
 	if cdxBOM.Metadata != nil && cdxBOM.Metadata.Component != nil {
@@ -76,9 +77,20 @@ func packagesFromCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) ([]types
 		if err != nil {
 			return err
 		}
-		if !containsPackage(pkgs, pkg) {
-			pkgs = append(pkgs, pkg)
+		if component.ExternalReferences != nil {
+			for _, ref := range *component.ExternalReferences {
+				if ref.Type != cyclonedx.ERTypeVCS {
+					continue
+				}
+				repo, err := parseGithubURL(ref.URL)
+				if err != nil {
+					continue
+				}
+				pkg.AddRepositories(repo)
+			}
 		}
+
+		pkgs.Add(pkg)
 
 		return nil
 
@@ -113,7 +125,7 @@ type syftArtifact struct {
 	Purl string `json:"purl"`
 }
 
-func packagesFromSyftJSON(r io.Reader) ([]types.Package, error) {
+func packagesFromSyftJSON(r io.Reader) (types.Packages, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -122,7 +134,7 @@ func packagesFromSyftJSON(r io.Reader) ([]types.Package, error) {
 	if err := json.Unmarshal(data, doc); err != nil {
 		return nil, err
 	}
-	var pkgs []types.Package
+	var pkgs types.Packages
 	for _, a := range doc.Artifacts {
 		if a.Purl == "" {
 			continue
@@ -138,20 +150,21 @@ func packagesFromSyftJSON(r io.Reader) ([]types.Package, error) {
 		if err != nil {
 			return nil, err
 		}
-		pkgs = append(pkgs, pkg)
+
+		pkgs.Add(pkg)
 	}
 
 	return pkgs, nil
 }
 
-func packageFromPurl(purl packageurl.PackageURL) (types.Package, error) {
+func packageFromPurl(purl packageurl.PackageURL) (*types.Package, error) {
 	switch purl.Type {
 	case packageurl.TypeNPM:
 		name := purl.Name
 		if purl.Namespace != "" {
 			name = purl.Namespace + "/" + name
 		}
-		return types.Package{
+		return &types.Package{
 			System: "NPM",
 			Name:   name,
 		}, nil
@@ -160,7 +173,7 @@ func packageFromPurl(purl packageurl.PackageURL) (types.Package, error) {
 		if purl.Namespace != "" {
 			name = purl.Namespace + "/" + purl.Name
 		}
-		pkg := types.Package{
+		pkg := &types.Package{
 			System: "GO",
 			Name:   name,
 		}
@@ -172,31 +185,34 @@ func packageFromPurl(purl packageurl.PackageURL) (types.Package, error) {
 		}
 		return pkg, nil
 	case packageurl.TypeMaven:
-		return types.Package{
+		return &types.Package{
 			System: "MAVEN",
 			Name:   strings.Join([]string{purl.Namespace, purl.Name}, ":"),
 		}, nil
 	case packageurl.TypePyPi:
-		return types.Package{
+		return &types.Package{
 			System: "PYPI",
 			Name:   purl.Name,
 		}, nil
 	case "cargo":
-		return types.Package{
+		return &types.Package{
 			System: "CARGO",
 			Name:   purl.Name,
 		}, nil
 	default:
-		return types.Package{}, ErrUnsupportedPackageType
+		return nil, ErrUnsupportedPackageType
 	}
 }
 
-func containsPackage(pkgs []types.Package, pkg types.Package) bool {
-	for _, p := range pkgs {
-		if p.Equals(pkg) {
-			return true
-		}
-	}
+var (
+	ghRegex       = regexp.MustCompile(`(?:https|git)(?:://|@)github\.com[/:]([^/:#]+)/([^/#]*).*`)
+	ghSuffixRegex = regexp.MustCompile(`(\.git/?)?(\.git|\?.*|#.*)?$`)
+)
 
-	return false
+func parseGithubURL(u string) (string, error) {
+	matches := ghRegex.FindStringSubmatch(ghSuffixRegex.ReplaceAllString(u, ""))
+	if len(matches) < 3 {
+		return "", fmt.Errorf("couldn't parse url")
+	}
+	return strings.Join([]string{"github.com", matches[1], matches[2]}, "/"), nil
 }

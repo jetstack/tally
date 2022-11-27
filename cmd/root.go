@@ -88,7 +88,7 @@ var rootCmd = &cobra.Command{
 		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs))
 
 		// Find repositories for the packages from the database
-		for i, pkg := range pkgs {
+		for _, pkg := range pkgs {
 			repos, err := tallyDB.GetRepositories(ctx, pkg.System, pkg.Name)
 			if err != nil {
 				if err != db.ErrNotFound {
@@ -97,11 +97,7 @@ var rootCmd = &cobra.Command{
 				continue
 			}
 
-			for _, repo := range repos {
-				if !contains(pkgs[i].Repositories, repo) {
-					pkgs[i].Repositories = append(pkgs[i].Repositories, repo)
-				}
-			}
+			pkg.AddRepositories(repos...)
 		}
 
 		// Get scores for each package+repository combination from the
