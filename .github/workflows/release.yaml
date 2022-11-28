@@ -67,5 +67,11 @@ jobs:
 
       - name: Build
         run: |
-          img=$(ko build --bare -t ${{ github.ref_name }} --platform=linux/amd64,linux/arm64,linux/arm --sbom=cyclonedx)
-          cosign sign ${img}
+          ko build \
+            --bare \
+            -t latest \
+            -t ${{ github.ref_name }} \
+            --platform=linux/amd64,linux/arm64,linux/arm \
+            --sbom=cyclonedx \
+            --image-refs image-refs.txt
+          cosign sign $(cat image-refs.txt)
