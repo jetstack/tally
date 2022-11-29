@@ -150,7 +150,7 @@ The supported SBOM formats are:
 ## Database
 
 When `tally` runs for the first time, it pulls down a database from
-`ghcr.io/jetstack/tally/db:latest` and caches it locally, typically in
+`ghcr.io/jetstack/tally/db:v1` and caches it locally, typically in
 `~/.cache/tally/db`.
 
 It uses the data in this database to associate Scorecard scores with packages.

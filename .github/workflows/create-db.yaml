@@ -46,4 +46,4 @@ jobs:
         working-directory: /home/runner/.cache/tally/db
         run: |
           zstd -k -19 tally.db
-          oras push ${{ env.REGISTRY }}/${{ github.repository }}/db:latest metadata.json:application/vnd.jetstack.tally.metadata.layer.v1 tally.db.zst:application/vnd.jetstack.tally.db.layer.v1+zstd
+          oras push ${{ env.REGISTRY }}/${{ github.repository }}/db:v1 metadata.json:application/vnd.jetstack.tally.metadata.layer.v1 tally.db.zst:application/vnd.jetstack.tally.db.layer.v1+zstd
