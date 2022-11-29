@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,10 +15,11 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/klauspost/compress/zstd"
 )
 
 const (
-	dbMediaType       = types.MediaType("application/vnd.jetstack.tally.db.layer.v1+gzip")
+	dbMediaType       = types.MediaType("application/vnd.jetstack.tally.db.layer.v1+zstd")
 	metadataMediaType = types.MediaType("application/vnd.jetstack.tally.metadata.layer.v1")
 )
 
@@ -144,13 +144,13 @@ func extractDB(img v1.Image, dir string, w io.Writer) error {
 	bar.SetWriter(w)
 	defer bar.Finish()
 
-	gr, err := gzip.NewReader(bar.NewProxyReader(rc))
+	zr, err := zstd.NewReader(bar.NewProxyReader(rc))
 	if err != nil {
 		return fmt.Errorf("creating gzip reader: %w", err)
 	}
-	defer gr.Close()
+	defer zr.Close()
 
-	if _, err := io.Copy(f, gr); err != nil {
+	if _, err := io.Copy(f, zr); err != nil {
 		return fmt.Errorf("extracting database: %w", err)
 	}
 

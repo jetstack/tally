@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/static"
-	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/klauspost/compress/zstd"
 )
 
 func TestManagerPullDB(t *testing.T) {
@@ -285,14 +285,20 @@ func TestManagerPullDB(t *testing.T) {
 }
 
 func newDBLayer(data []byte) (v1.Layer, error) {
-	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewBuffer(data)), nil
-	}, tarball.WithMediaType(dbMediaType))
+	var buf bytes.Buffer
+	enc, err := zstd.NewWriter(&buf)
 	if err != nil {
 		return nil, err
 	}
+	if _, err := io.Copy(enc, bytes.NewReader(data)); err != nil {
+		enc.Close()
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
 
-	return layer, nil
+	return static.NewLayer(buf.Bytes(), dbMediaType), nil
 }
 
 func setupRegistry(t *testing.T) string {
