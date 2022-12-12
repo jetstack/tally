@@ -3,7 +3,7 @@ module github.com/jetstack/tally
 go 1.19
 
 require (
-	cloud.google.com/go/bigquery v1.43.0
+	cloud.google.com/go/bigquery v1.44.0
 	github.com/CycloneDX/cyclonedx-go v0.7.0
 	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/google/go-cmp v0.5.9
