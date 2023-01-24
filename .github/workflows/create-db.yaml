@@ -27,7 +27,7 @@ jobs:
           service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
 
       - name: Log into ${{ env.REGISTRY }}
-        uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
