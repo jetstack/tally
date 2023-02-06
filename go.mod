@@ -12,7 +12,7 @@ require (
 	github.com/ossf/scorecard/v4 v4.10.2
 	github.com/package-url/packageurl-go v0.1.0
 	github.com/spf13/cobra v1.6.1
-	google.golang.org/api v0.108.0
+	google.golang.org/api v0.109.0
 	modernc.org/sqlite v1.20.3
 )
 
