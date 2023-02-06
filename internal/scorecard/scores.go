@@ -30,10 +30,11 @@ func GenerateScore(ctx context.Context, repository string) (*types.Score, error)
 		return nil, fmt.Errorf("checking docs: %s", err)
 	}
 
-	res, err := pkg.RunScorecards(
+	res, err := pkg.RunScorecard(
 		ctx,
 		repoURI,
 		"HEAD",
+		0,
 		enabledChecks,
 		repoClient,
 		ossFuzzRepoClient,
