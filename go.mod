@@ -7,7 +7,7 @@ require (
 	github.com/CycloneDX/cyclonedx-go v0.7.0
 	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/google/go-cmp v0.5.9
-	github.com/google/go-containerregistry v0.12.1
+	github.com/google/go-containerregistry v0.13.0
 	github.com/klauspost/compress v1.15.15
 	github.com/ossf/scorecard/v4 v4.8.0
 	github.com/package-url/packageurl-go v0.1.0
