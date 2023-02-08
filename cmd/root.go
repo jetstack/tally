@@ -7,12 +7,12 @@ import (
 	"os"
 
 	"github.com/jetstack/tally/internal/bom"
-	"github.com/jetstack/tally/internal/db"
 	"github.com/jetstack/tally/internal/manager"
 	"github.com/jetstack/tally/internal/output"
 	"github.com/jetstack/tally/internal/repositories"
 	"github.com/jetstack/tally/internal/scorecard"
-	"github.com/jetstack/tally/internal/types"
+	scorecarddb "github.com/jetstack/tally/internal/scorecard/db"
+	"github.com/jetstack/tally/internal/tally"
 	"github.com/spf13/cobra"
 )
 
@@ -34,10 +34,6 @@ var rootCmd = &cobra.Command{
 	Long:  `Finds OpenSSF Scorecard scores for packages in a Software Bill of Materials.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		if ro.GenerateScores && os.Getenv("GITHUB_TOKEN") == "" {
-			return fmt.Errorf("must set GITHUB_TOKEN environment variable with -g/--generate")
-		}
-
 		ctx := context.Background()
 
 		// Configure the output writer
@@ -90,7 +86,6 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs))
 
 		// Map packages to repositories, using various different sources
 		repoMapper := repositories.From(
@@ -98,85 +93,28 @@ var rootCmd = &cobra.Command{
 			repositories.BOMMapper(sbom),
 			repositories.DBMapper(tallyDB),
 		)
-		for i, pkg := range pkgs {
-			repos, err := repoMapper.Repositories(ctx, pkg)
-			if err != nil {
-				if err != db.ErrNotFound {
-					return err
-				}
-				continue
-			}
 
-			for _, repo := range repos {
-				if !contains(pkgs[i].Repositories, repo) {
-					pkgs[i].Repositories = append(pkgs[i].Repositories, repo)
-				}
-			}
+		// Fetch scores from the database
+		scorecardClients := []scorecard.Client{
+			scorecarddb.NewClient(tallyDB),
 		}
 
-		// Get scores for each package+repository combination from the
-		// database
-		var results []types.Result
-		for _, pkg := range pkgs {
-			if len(pkg.Repositories) == 0 {
-				results = append(results, types.Result{
-					PackageSystem: pkg.System,
-					PackageName:   pkg.Name,
-				})
-				continue
-			}
-			for _, repo := range pkg.Repositories {
-				result := types.Result{
-					PackageSystem: pkg.System,
-					PackageName:   pkg.Name,
-					Repository:    repo,
-				}
-
-				score, err := getScore(ctx, tallyDB, repo)
-				if err != nil && err != db.ErrNotFound {
-					return err
-				}
-				result.Score = score
-
-				results = append(results, result)
-			}
-		}
-
-		// Generate any missing scores
+		// Optionally generate scores with the scorecard client
 		if ro.GenerateScores {
-			// Find repositories without scores
-			var repos []string
-			for _, result := range results {
-				if result.Repository == "" || result.Score != nil {
-					continue
-				}
-				if contains(repos, result.Repository) {
-					continue
-				}
-				repos = append(repos, result.Repository)
+			sc, err := scorecard.NewScorecardClient()
+			if err != nil {
+				return fmt.Errorf("configuring scorecard client: %w", err)
 			}
-
-			// Generate a score for each repository
-			for _, repo := range repos {
-				// Attempt to generate a score
-				fmt.Fprintf(os.Stderr, "Generating missing score for %s...\n", repo)
-				score, err := scorecard.GenerateScore(ctx, repo)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Warning, couldn't generate score for %s: %s\n", repo, err)
-					continue
-				}
-
-				// Add the score to the results
-				for i, result := range results {
-					if result.Repository != repo {
-						continue
-					}
-					results[i].Score = score
-				}
-			}
+			scorecardClients = append(scorecardClients, sc)
 		}
 
-		// Write output
+		// Get results
+		results, err := tally.Results(ctx, os.Stderr, repoMapper, scorecardClients, pkgs...)
+		if err != nil {
+			return fmt.Errorf("getting results: %w", err)
+		}
+
+		// Write results to output
 		if err := out.WriteResults(os.Stdout, results); err != nil {
 			os.Exit(1)
 		}
@@ -194,44 +132,6 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-func getScore(ctx context.Context, tallyDB db.DB, repo string) (*types.Score, error) {
-	var score *types.Score
-
-	// Get the overall score
-	s, err := tallyDB.GetScores(ctx, repo)
-	if err != nil {
-		return nil, err
-	}
-	if len(s) != 1 {
-		return nil, fmt.Errorf("unexpected number of scores returned from database: %d", len(s))
-	}
-	score = &types.Score{
-		Score:  s[0].Score,
-		Checks: map[string]int{},
-	}
-
-	// Get the individual check scores
-	checks, err := tallyDB.GetChecks(ctx, repo)
-	if err != nil {
-		return nil, err
-	}
-	for _, check := range checks {
-		score.Checks[check.Name] = check.Score
-	}
-
-	return score, nil
-}
-
-func contains(vals []string, val string) bool {
-	for _, v := range vals {
-		if v == val {
-			return true
-		}
-	}
-
-	return false
 }
 
 func Execute() {

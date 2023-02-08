@@ -74,11 +74,12 @@ func writeWide(w io.Writer, results []types.Result) error {
 	fmt.Fprintf(tw, "SYSTEM\tPACKAGE\tREPOSITORY\tSCORE\n")
 
 	for _, result := range results {
-		if result.Score != nil {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", result.PackageSystem, result.PackageName, result.Repository, result.Score.Score)
-		} else {
-
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", result.PackageSystem, result.PackageName, result.Repository, " ")
+		for _, pkg := range result.Packages {
+			if result.Score != nil {
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.System, pkg.Name, result.Repository, result.Score.Score)
+			} else {
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", pkg.System, pkg.Name, result.Repository, " ")
+			}
 		}
 	}
 

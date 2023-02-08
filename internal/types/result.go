@@ -1,9 +1,9 @@
 package types
 
-// Result is the scorecard score for a package+repository combination
+// Result is the scorecard score for a repository with any packages associated
+// with that repository
 type Result struct {
-	PackageSystem string `json:"packageSystem"`
-	PackageName   string `json:"packageName"`
-	Repository    string `json:"repository,omitempty"`
-	Score         *Score `json:"score,omitempty"`
+	Repository string    `json:"repository,omitempty"`
+	Packages   []Package `json:"packages,omitempty"`
+	Score      *Score    `json:"score,omitempty"`
 }

@@ -2,9 +2,8 @@ package types
 
 // Package is a package
 type Package struct {
-	System       string   `json:"system"`
-	Name         string   `json:"name"`
-	Repositories []string `json:"repositories,omitempty"`
+	System string `json:"system"`
+	Name   string `json:"name"`
 }
 
 // Equals compares one package to another

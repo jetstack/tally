@@ -60,6 +60,11 @@ func (o *output) WriteResults(w io.Writer, results []types.Result) error {
 			js = results[j].Score.Score
 		}
 
+		// If the scores are equal, then sort by repository.
+		if is == js {
+			return results[i].Repository > results[j].Repository
+		}
+
 		return is > js
 	})
 

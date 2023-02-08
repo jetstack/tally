@@ -25,7 +25,6 @@ Generate an SBOM in CycloneDX JSON format and then scan it with `tally`.
 ```
 $ syft prom/prometheus -o cyclonedx-json > bom.json
 $ tally bom.json
-Found 150 supported packages in BOM
 REPOSITORY                            SCORE
 github.com/googleapis/google-cloud-go 9.3
 github.com/imdario/mergo              9.1
@@ -54,8 +53,7 @@ token.
 ```
 $ export GITHUB_TOKEN=<token>
 $ tally -g bom.json
-Found 150 supported packages in BOM
-Generating missing scores...
+Generating score for 'github.com/foo/bar' [--------->..] 68/72
 ```
 
 This may take a while, depending on the number of missing scores.
@@ -99,9 +97,13 @@ individual check scores:
 $ tally -o json bom.json | jq -r .
 [
   {
-    "packageSystem": "MAVEN",
-    "packageName": "com.google.http-client:google-http-client-jackson2",
     "repository": "github.com/googleapis/google-http-java-client",
+    "packages" : [
+      {
+        "system": "MAVEN",
+        "name": "com.google.http-client:google-http-client-jackson2"
+      }
+    ],
     "score": {
       "score": 7.9,
       "checks": {
