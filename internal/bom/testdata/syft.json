@@ -1,0 +1,14 @@
+{
+  "artifacts": [
+    {
+      "id": "0",
+      "name": "foo",
+      "purl": "pkg:golang/foo/bar@v0.2.5"
+    },
+    {
+      "id": "1",
+      "name": "HdrHistogram",
+      "purl": "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9"
+    }
+  ]
+}
