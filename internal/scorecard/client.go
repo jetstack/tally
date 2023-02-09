@@ -35,7 +35,13 @@ type Client interface {
 	// ConcurrencyLimit indicates the maximum number of concurrent invocations
 	// the client supports. A value of 0 indicates that there is no limit.
 	ConcurrencyLimit() int
+
+	// Name returns the name of this client
+	Name() string
 }
+
+// ScorecardClientName is the name of the scorecard client
+const ScorecardClientName = "scorecard"
 
 // ScorecardClient generates scorecard scores for repositories
 type ScorecardClient struct{}
@@ -47,6 +53,11 @@ func NewScorecardClient() (Client, error) {
 		return nil, fmt.Errorf("GITHUB_TOKEN environment variable must be set when using the scorecard client to generate scores")
 	}
 	return &ScorecardClient{}, nil
+}
+
+// Name is the name of the client
+func (c *ScorecardClient) Name() string {
+	return ScorecardClientName
 }
 
 // GetScore generates a scorecard score with the scorecard client

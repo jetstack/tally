@@ -24,6 +24,9 @@ const (
 	DefaultTimeout = time.Second * 30
 )
 
+// ClientName is the name of the client
+const ClientName = "api"
+
 // Client retrieves scores from the scorecard API
 type Client struct {
 	baseURL       *url.URL
@@ -51,6 +54,11 @@ func NewClient(rawURL string, opts ...Option) (scorecard.Client, error) {
 	}
 
 	return c, nil
+}
+
+// Name returns the client name
+func (c *Client) Name() string {
+	return ClientName
 }
 
 // GetScore fetches a score from the public scorecard API

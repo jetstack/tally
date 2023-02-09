@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jetstack/tally/internal/bom"
+	"github.com/jetstack/tally/internal/cache"
 	"github.com/jetstack/tally/internal/manager"
 	"github.com/jetstack/tally/internal/output"
 	"github.com/jetstack/tally/internal/repositories"
@@ -21,6 +22,9 @@ type rootOptions struct {
 	All            bool
 	APITimeout     time.Duration
 	APIURL         string
+	Cache          bool
+	CacheDir       string
+	CacheDuration  time.Duration
 	CheckForUpdate bool
 	DBRef          string
 	FailOn         float64Flag
@@ -113,6 +117,19 @@ var rootCmd = &cobra.Command{
 			scorecardClients = append(scorecardClients, sc)
 		}
 
+		// Cache scores locally to speed up subsequent runs
+		if ro.Cache {
+			dbCache, err := cache.NewSqliteCache(ro.CacheDir, cache.WithDuration(ro.CacheDuration))
+			if err != nil {
+				return fmt.Errorf("creating cache: %w", err)
+			}
+
+			// Wrap our clients with the cache
+			for i, client := range scorecardClients {
+				scorecardClients[i] = cache.NewScorecardClient(dbCache, client)
+			}
+		}
+
 		// Get results
 		results, err := tally.Results(ctx, os.Stderr, repoMapper, scorecardClients, pkgs...)
 		if err != nil {
@@ -154,6 +171,9 @@ func init() {
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", output.Formats))
 	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the database. The GITHUB_TOKEN environment variable must be set.")
 	rootCmd.Flags().BoolVar(&ro.CheckForUpdate, "check-for-update", true, "check for database update")
+	rootCmd.Flags().BoolVar(&ro.Cache, "cache", true, "cache scores locally")
+	rootCmd.Flags().StringVar(&ro.CacheDir, "cache-dir", "", "directory to cache scores in, defaults to $HOME/.cache/tally/cache on most systems")
+	rootCmd.Flags().DurationVar(&ro.CacheDuration, "cache-duration", 7*(24*time.Hour), "how long to cache scores for; defaults to 7 days")
 	rootCmd.Flags().StringVar(&ro.DBRef, "db-reference", "ghcr.io/jetstack/tally/db:v1", "image reference to download database from")
 	rootCmd.Flags().Var(&ro.FailOn, "fail-on", "fail if a package is found with a score <= to the given value")
 }

@@ -61,6 +61,22 @@ Generating score for 'github.com/foo/bar' [--------->..] 68/72
 
 This may take a while, depending on the number of missing scores.
 
+### Cache
+
+To speed up subsequent runs, `tally` will cache scores to a local database. You
+can disable the cache with `--cache=false`.
+
+By default, scores are cached for 7 days. This can be changed with the
+`--cache-duration` flag:
+
+```
+tally --cache-duration=20m bom.json
+```
+
+The cache is stored in the user's home cache directory, which is commonly
+located in `~/.cache/tally/cache/`. This can be changed with the `--cache-dir`
+flag.
+
 ### Fail on low scores
 
 The return code will be set to 1 when a score is identified that is less than

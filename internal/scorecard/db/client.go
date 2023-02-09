@@ -10,6 +10,9 @@ import (
 	"github.com/jetstack/tally/internal/types"
 )
 
+// ClientName is the name of the client
+const ClientName = "tally-db"
+
 // Client fetches scores from the tally database
 type Client struct {
 	d db.ScoreReader
@@ -18,6 +21,11 @@ type Client struct {
 // NewClient returns a client that gets scores from the tally database
 func NewClient(d db.ScoreReader) scorecard.Client {
 	return &Client{d}
+}
+
+// Name returns the name of the client
+func (c *Client) Name() string {
+	return ClientName
 }
 
 // GetScore retrieves scores from the tally database

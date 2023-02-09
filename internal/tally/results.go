@@ -72,8 +72,8 @@ func Results(ctx context.Context, w io.Writer, repoMapper repositories.Mapper, c
 				mux.Lock()
 				// Tweak the message displayed in the progress bar
 				// depending on the type of client
-				switch client.(type) {
-				case *scorecard.ScorecardClient:
+				switch client.Name() {
+				case scorecard.ScorecardClientName:
 					bar.Set("message", fmt.Sprintf("Generating score for %q", result.Repository))
 				default:
 					bar.Set("message", fmt.Sprintf("Finding score for %q", result.Repository))
