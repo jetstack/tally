@@ -495,6 +495,65 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 				"github.com/bar/foo",
 			},
 		},
+		"repositories are extracted and deduplicated from all supported types": {
+			bom: &cyclonedx.BOM{
+				Components: &[]cyclonedx.Component{
+					{
+						PackageURL: "pkg:golang/foo/bar@v0.1.1",
+						ExternalReferences: &[]cyclonedx.ExternalReference{
+							{
+								Type: cyclonedx.ERTypeVCS,
+								URL:  "https://github.com/bar/foo",
+							},
+							{
+								Type: cyclonedx.ERTypeDistribution,
+								URL:  "https://github.com/bar/foo.git",
+							},
+							{
+								Type: cyclonedx.ERTypeWebsite,
+								URL:  "http://github.com/bar/foo.git",
+							},
+						},
+					},
+					{
+						PackageURL: "pkg:golang/foo/bar@v0.2.2",
+						ExternalReferences: &[]cyclonedx.ExternalReference{
+							{
+								Type: cyclonedx.ERTypeWebsite,
+								URL:  "https://github.com/bar/foo.git",
+							},
+						},
+					},
+					{
+						PackageURL: "pkg:golang/foo/bar@v0.2.2",
+						ExternalReferences: &[]cyclonedx.ExternalReference{
+							{
+								Type: cyclonedx.ERTypeDistribution,
+								URL:  "https://github.com/foo/baz.git",
+							},
+						},
+					},
+					{
+						PackageURL: "pkg:golang/foo/bar@v0.1.1",
+						ExternalReferences: &[]cyclonedx.ExternalReference{
+							{
+								Type: cyclonedx.ERTypeWebsite,
+								URL:  "https://github.com/foo/bar",
+							},
+						},
+					},
+				},
+			},
+			pkg: types.Package{
+				System: "GO",
+				Name:   "foo/bar",
+			},
+			wantRepos: []string{
+				"github.com/bar/foo",
+				"github.com/foo/baz",
+				"github.com/foo/bar",
+			},
+		},
 	}
 	for n, tc := range testCases {
 		t.Run(n, func(t *testing.T) {

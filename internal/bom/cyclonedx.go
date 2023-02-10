@@ -73,15 +73,15 @@ func (b *cdxBOM) Repositories(pkg types.Package) ([]string, error) {
 			}
 			if component.ExternalReferences != nil {
 				for _, ref := range *component.ExternalReferences {
-					if ref.Type != cyclonedx.ERTypeVCS {
-						continue
-					}
-					repo, err := github_url.ToRepository(ref.URL)
-					if err != nil {
-						continue
-					}
-					if !contains(repos, repo) {
-						repos = append(repos, repo)
+					switch ref.Type {
+					case cyclonedx.ERTypeVCS, cyclonedx.ERTypeDistribution, cyclonedx.ERTypeWebsite:
+						repo, err := github_url.ToRepository(ref.URL)
+						if err != nil {
+							continue
+						}
+						if !contains(repos, repo) {
+							repos = append(repos, repo)
+						}
 					}
 				}
 			}
