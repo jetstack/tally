@@ -10,6 +10,7 @@ import (
 	"github.com/jetstack/tally/internal/db"
 	"github.com/jetstack/tally/internal/manager"
 	"github.com/jetstack/tally/internal/output"
+	"github.com/jetstack/tally/internal/repositories"
 	"github.com/jetstack/tally/internal/scorecard"
 	"github.com/jetstack/tally/internal/types"
 	"github.com/spf13/cobra"
@@ -81,15 +82,24 @@ var rootCmd = &cobra.Command{
 			}
 			defer r.Close()
 		}
-		pkgs, err := bom.PackagesFromBOM(r, bom.Format(ro.Format))
+		sbom, err := bom.ParseBOM(r, bom.Format(ro.Format))
+		if err != nil {
+			return err
+		}
+		pkgs, err := sbom.Packages()
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "Found %d supported packages in BOM\n", len(pkgs))
 
-		// Find repositories for the packages from the database
+		// Map packages to repositories, using various different sources
+		repoMapper := repositories.From(
+			repositories.PackageMapper,
+			repositories.BOMMapper(sbom),
+			repositories.DBMapper(tallyDB),
+		)
 		for i, pkg := range pkgs {
-			repos, err := tallyDB.GetRepositories(ctx, pkg.System, pkg.Name)
+			repos, err := repoMapper.Repositories(ctx, pkg)
 			if err != nil {
 				if err != db.ErrNotFound {
 					return err

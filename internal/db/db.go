@@ -22,14 +22,11 @@ type DB interface {
 
 // DBReader reads from the database
 type DBReader interface {
+	RepositoryReader
+
 	// GetChecks retrieves check scores for a repository. Returns
 	// ErrNotFound if no checks are found.
 	GetChecks(context.Context, string) ([]Check, error)
-
-	// GetRepositories returns any repositories associated with the package
-	// indicated by system and name. Returns ErrNotFound if there are no matching
-	// repositories.
-	GetRepositories(context.Context, string, string) ([]string, error)
 
 	// GetScore retrieves scorecard scores for a list of repositories
 	GetScores(context.Context, ...string) ([]Score, error)
@@ -50,6 +47,11 @@ type DBWriter interface {
 	// a score in the database for the repository in question, then the
 	// existing score will be updated.
 	AddScores(context.Context, ...Score) error
+}
+
+// RepositoryReader reads repositories from the database
+type RepositoryReader interface {
+	GetRepositories(context.Context, string, string) ([]string, error)
 }
 
 // Package is a package associated with a repository

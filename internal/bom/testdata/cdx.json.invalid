@@ -1,0 +1,29 @@
+{
+  "bomFormat": "CycloneDX"
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:5e0841b1-88e1-4dd8-b706-77457fb3e779",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "1234567",
+      "type": "application",
+      "name": "foo/bar",
+      "version": "v0.2.5",
+      "purl": "pkg:golang/foo/bar@v0.2.5"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "0",
+      "type": "library",
+      "name": "HdrHistogram",
+      "purl": "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9"
+    },
+    {
+      "bom-ref": "1",
+      "type": "library",
+      "name": "adduser",
+      "purl": "pkg:deb/debian/adduser@3.118?arch=all\u0026distro=debian-11"
+    }
+  ]
+}
