@@ -22,6 +22,9 @@ It currently supports the following package types:
 
 Generate an SBOM in CycloneDX JSON format and then scan it with `tally`.
 
+This uses the [public scorecard API](https://api.securityscorecards.dev/#/) to
+fetch scores.
+
 ```
 $ syft prom/prometheus -o cyclonedx-json > bom.json
 $ tally bom.json
@@ -43,8 +46,8 @@ $ syft prom/prometheus -o cyclonedx-json | tally -
 
 ### Generate missing scores
 
-Tally may not have scores in its database for every discovered repository but
-it can generate these missing scores itself when the `-g/--generate` flag is
+The public API may not have a score for every discovered repository but `tally`
+can generate these missing scores itself when the `-g/--generate` flag is
 set.
 
 This requires that the `GITHUB_TOKEN` environment variable is set to a valid
@@ -85,6 +88,7 @@ github.com/googleapis/google-cloud-go 9.3
 ```
 
 The `wide` output format will print additional package information:
+
 ```
 SYSTEM PACKAGE                     VERSION REPOSITORY                            SCORE
 GO     cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3
@@ -153,9 +157,10 @@ The supported SBOM formats are:
 
 When `tally` runs for the first time, it pulls down a database from
 `ghcr.io/jetstack/tally/db:v1` and caches it locally, typically in
-`~/.cache/tally/db`.
+`~/.cache/tally/db/`.
 
-It uses the data in this database to associate Scorecard scores with packages.
+It uses the data in this database to associate packages in SBOMs with Github
+repositories.
 
 Every time `tally` runs it will check for a new version of the database and pull
 it down if it finds one.

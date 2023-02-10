@@ -21,12 +21,20 @@ var (
 	// ErrUnexpectedResponse is returned when a scorecard client gets an unexpected
 	// response from its upstream source
 	ErrUnexpectedResponse = errors.New("unexpected response")
+
+	// ErrInvalidRepository is returned when an invalid repository is
+	// provided as input
+	ErrInvalidRepository = errors.New("invalid repository")
 )
 
 // Client fetches scorecard results for repositories
 type Client interface {
 	// GetScore retrieves the scorecard score for the given repository
 	GetScore(ctx context.Context, repository string) (*types.Score, error)
+
+	// ConcurrencyLimit indicates the maximum number of concurrent invocations
+	// the client supports. A value of 0 indicates that there is no limit.
+	ConcurrencyLimit() int
 }
 
 // ScorecardClient generates scorecard scores for repositories
@@ -89,4 +97,9 @@ func (c *ScorecardClient) GetScore(ctx context.Context, repository string) (*typ
 	score.Score = s
 
 	return score, nil
+}
+
+// ConcurrencyLimit indicates that the client cannot be ran concurrently
+func (c *ScorecardClient) ConcurrencyLimit() int {
+	return 1
 }

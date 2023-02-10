@@ -52,3 +52,8 @@ func (c *Client) GetScore(ctx context.Context, repository string) (*types.Score,
 
 	return score, nil
 }
+
+// ConcurrencyLimit indicates that the client cannot be ran concurrently
+func (c *Client) ConcurrencyLimit() int {
+	return 1
+}

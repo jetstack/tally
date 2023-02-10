@@ -5,19 +5,22 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/manager"
 	"github.com/jetstack/tally/internal/output"
 	"github.com/jetstack/tally/internal/repositories"
 	"github.com/jetstack/tally/internal/scorecard"
-	scorecarddb "github.com/jetstack/tally/internal/scorecard/db"
+	scorecardapi "github.com/jetstack/tally/internal/scorecard/api"
 	"github.com/jetstack/tally/internal/tally"
 	"github.com/spf13/cobra"
 )
 
 type rootOptions struct {
 	All            bool
+	APITimeout     time.Duration
+	APIURL         string
 	CheckForUpdate bool
 	DBRef          string
 	FailOn         float64Flag
@@ -87,17 +90,19 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		// Map packages to repositories, using various different sources
+		// Map packages to repositories using various different sources
 		repoMapper := repositories.From(
 			repositories.PackageMapper,
 			repositories.BOMMapper(sbom),
 			repositories.DBMapper(tallyDB),
 		)
 
-		// Fetch scores from the database
-		scorecardClients := []scorecard.Client{
-			scorecarddb.NewClient(tallyDB),
+		// Fetch scores from the API
+		apiClient, err := scorecardapi.NewClient(ro.APIURL)
+		if err != nil {
+			return fmt.Errorf("configuring API client: %w", err)
 		}
+		scorecardClients := []scorecard.Client{apiClient}
 
 		// Optionally generate scores with the scorecard client
 		if ro.GenerateScores {
@@ -144,6 +149,8 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringVarP(&ro.Format, "format", "f", string(bom.FormatCycloneDXJSON), fmt.Sprintf("BOM format, options=%s", bom.Formats))
 	rootCmd.Flags().BoolVarP(&ro.All, "all", "a", false, "print all packages, even those without a scorecard score")
+	rootCmd.Flags().DurationVar(&ro.APITimeout, "api-timeout", scorecardapi.DefaultTimeout, "timeout for requests to scorecard API")
+	rootCmd.Flags().StringVar(&ro.APIURL, "api-url", scorecardapi.DefaultURL, "scorecard API URL")
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", output.Formats))
 	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the database. The GITHUB_TOKEN environment variable must be set.")
 	rootCmd.Flags().BoolVar(&ro.CheckForUpdate, "check-for-update", true, "check for database update")

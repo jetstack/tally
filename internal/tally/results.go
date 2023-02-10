@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
+	"sync"
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/jetstack/tally/internal/repositories"
 	"github.com/jetstack/tally/internal/scorecard"
 	"github.com/jetstack/tally/internal/types"
+	"golang.org/x/sync/errgroup"
 )
 
 const pbTemplate = `{{ string . "message" }} {{ bar . "[" "-" ">" "." "]"}} {{counters . }}`
@@ -53,27 +56,49 @@ func Results(ctx context.Context, w io.Writer, repoMapper repositories.Mapper, c
 	defer bar.Finish()
 
 	for _, client := range clients {
+		limit := client.ConcurrencyLimit()
+		if limit < 1 {
+			limit = runtime.NumCPU()
+		}
+		var g errgroup.Group
+		g.SetLimit(limit)
+		mux := sync.RWMutex{}
 		for i, result := range results {
-			if result.Score != nil {
+			if result.Score != nil || result.Repository == "" {
 				continue
 			}
-			// Tweak the message displayed in the progress bar
-			// depending on the type of client
-			switch client.(type) {
-			case *scorecard.ScorecardClient:
-				bar.Set("message", fmt.Sprintf("Generating score for %q", result.Repository))
-			default:
-				bar.Set("message", fmt.Sprintf("Finding score for %q", result.Repository))
-			}
-			score, err := client.GetScore(ctx, result.Repository)
-			if err != nil && !errors.Is(err, scorecard.ErrNotFound) {
-				return nil, fmt.Errorf("getting score for %s: %w", result.Repository, err)
-			}
-			if score == nil {
-				continue
-			}
-			results[i].Score = score
-			bar.Increment()
+			i, result := i, result
+			g.Go(func() error {
+				mux.Lock()
+				// Tweak the message displayed in the progress bar
+				// depending on the type of client
+				switch client.(type) {
+				case *scorecard.ScorecardClient:
+					bar.Set("message", fmt.Sprintf("Generating score for %q", result.Repository))
+				default:
+					bar.Set("message", fmt.Sprintf("Finding score for %q", result.Repository))
+				}
+				mux.Unlock()
+
+				score, err := client.GetScore(ctx, result.Repository)
+				if err != nil && !errors.Is(err, scorecard.ErrNotFound) {
+					return fmt.Errorf("getting score for %s: %w", result.Repository, err)
+				}
+				if score == nil {
+					return nil
+				}
+
+				results[i].Score = score
+
+				mux.Lock()
+				bar.Increment()
+				mux.Unlock()
+
+				return nil
+			})
+		}
+		if err := g.Wait(); err != nil {
+			return nil, err
 		}
 	}
 
