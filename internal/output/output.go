@@ -38,7 +38,7 @@ func (o *output) WriteResults(w io.Writer, results []types.Result) error {
 	if !o.all {
 		r := []types.Result{}
 		for _, result := range results {
-			if result.Score == nil {
+			if result.ScorecardResult == nil {
 				continue
 			}
 			r = append(r, result)
@@ -52,12 +52,12 @@ func (o *output) WriteResults(w io.Writer, results []types.Result) error {
 			is float64
 			js float64
 		)
-		if results[i].Score != nil {
-			is = results[i].Score.Score
+		if results[i].ScorecardResult != nil {
+			is = results[i].ScorecardResult.Score
 		}
 
-		if results[j].Score != nil {
-			js = results[j].Score.Score
+		if results[j].ScorecardResult != nil {
+			js = results[j].ScorecardResult.Score
 		}
 
 		// If the scores are equal, then sort by repository.

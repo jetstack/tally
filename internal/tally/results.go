@@ -64,7 +64,7 @@ func Results(ctx context.Context, w io.Writer, repoMapper repositories.Mapper, c
 		g.SetLimit(limit)
 		mux := sync.RWMutex{}
 		for i, result := range results {
-			if result.Score != nil || result.Repository == "" {
+			if result.ScorecardResult != nil || result.Repository == "" {
 				continue
 			}
 			i, result := i, result
@@ -80,15 +80,15 @@ func Results(ctx context.Context, w io.Writer, repoMapper repositories.Mapper, c
 				}
 				mux.Unlock()
 
-				score, err := client.GetScore(ctx, result.Repository)
+				scorecardResult, err := client.GetResult(ctx, result.Repository)
 				if err != nil && !errors.Is(err, scorecard.ErrNotFound) {
 					return fmt.Errorf("getting score for %s: %w", result.Repository, err)
 				}
-				if score == nil {
+				if scorecardResult == nil {
 					return nil
 				}
 
-				results[i].Score = score
+				results[i].ScorecardResult = scorecardResult
 
 				mux.Lock()
 				bar.Increment()

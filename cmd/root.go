@@ -117,7 +117,7 @@ var rootCmd = &cobra.Command{
 			scorecardClients = append(scorecardClients, sc)
 		}
 
-		// Cache scores locally to speed up subsequent runs
+		// Cache scorecard results locally to speed up subsequent runs
 		if ro.Cache {
 			dbCache, err := cache.NewSqliteCache(ro.CacheDir, cache.WithDuration(ro.CacheDuration))
 			if err != nil {
@@ -144,7 +144,7 @@ var rootCmd = &cobra.Command{
 		// Exit 1 if there is a score <= o.FailOn
 		if ro.FailOn.Value != nil {
 			for _, result := range results {
-				if result.Score == nil || result.Score.Score > *ro.FailOn.Value {
+				if result.ScorecardResult == nil || result.ScorecardResult.Score > *ro.FailOn.Value {
 					continue
 				}
 				fmt.Fprintf(os.Stderr, "error: found scores <= to %0.2f\n", *ro.FailOn.Value)

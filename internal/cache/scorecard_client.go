@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jetstack/tally/internal/scorecard"
-	"github.com/jetstack/tally/internal/types"
+	"github.com/ossf/scorecard-webapp/app/generated/models"
 )
 
 // ScorecardClient wraps another scorecard client, caching the scores it retrieves
@@ -23,25 +23,25 @@ func NewScorecardClient(ca Cache, client scorecard.Client) scorecard.Client {
 	}
 }
 
-// GetScore attempts to get the score from the cache. Failing that it will get
-// the score from the wrapped client and cache it for next time.
-func (c *ScorecardClient) GetScore(ctx context.Context, repository string) (*types.Score, error) {
-	score, err := c.ca.GetScore(ctx, repository)
+// GetResult attempts to get the scorecard result from the cache. Failing that it will get
+// the scorecard result from the wrapped client and cache it for next time.
+func (c *ScorecardClient) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
+	result, err := c.ca.GetResult(ctx, repository)
 	if err == nil {
-		return score, nil
+		return result, nil
 	}
 	if !errors.Is(err, ErrNotFound) {
-		return nil, fmt.Errorf("getting score from cache: %w", err)
+		return nil, fmt.Errorf("getting scorecard result from cache: %w", err)
 	}
 
-	score, err = c.Client.GetScore(ctx, repository)
+	result, err = c.Client.GetResult(ctx, repository)
 	if err != nil {
-		return nil, fmt.Errorf("getting score from wrapped client: %w", err)
+		return nil, fmt.Errorf("getting scorecard result from wrapped client: %w", err)
 	}
 
-	if err := c.ca.PutScore(ctx, repository, score); err != nil {
-		return nil, fmt.Errorf("caching score: %w", err)
+	if err := c.ca.PutResult(ctx, repository, result); err != nil {
+		return nil, fmt.Errorf("caching scorecard result: %w", err)
 	}
 
-	return score, nil
+	return result, nil
 }

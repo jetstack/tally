@@ -8,7 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/jetstack/tally/internal/db"
 	"github.com/jetstack/tally/internal/scorecard"
-	"github.com/jetstack/tally/internal/types"
+	"github.com/ossf/scorecard-webapp/app/generated/models"
 )
 
 type mockDBScoreReader struct {
@@ -26,13 +26,16 @@ func (r *mockDBScoreReader) GetScores(ctx context.Context, repositories ...strin
 
 func TestClientGetScore(t *testing.T) {
 	type testCase struct {
-		sr        db.ScoreReader
-		wantScore *types.Score
-		wantErr   error
+		sr                  db.ScoreReader
+		repository          string
+		wantScorecardResult *models.ScorecardResult
+		wantErr             error
 	}
 	testCases := map[string]func(t *testing.T) *testCase{
 		"should return expected score": func(t *testing.T) *testCase {
+			repository := "github.com/foo/bar"
 			return &testCase{
+				repository: repository,
 				sr: &mockDBScoreReader{
 					getScores: func(context.Context, ...string) ([]db.Score, error) {
 						return []db.Score{
@@ -54,11 +57,20 @@ func TestClientGetScore(t *testing.T) {
 						}, nil
 					},
 				},
-				wantScore: &types.Score{
+				wantScorecardResult: &models.ScorecardResult{
+					Repo: &models.Repo{
+						Name: repository,
+					},
 					Score: 7.2,
-					Checks: map[string]int{
-						"foo": 8,
-						"bar": 2,
+					Checks: []*models.ScorecardCheck{
+						{
+							Name:  "foo",
+							Score: 8,
+						},
+						{
+							Name:  "bar",
+							Score: 2,
+						},
 					},
 				},
 			}
@@ -153,11 +165,11 @@ func TestClientGetScore(t *testing.T) {
 		t.Run(n, func(t *testing.T) {
 			tc := setup(t)
 
-			gotScore, err := NewClient(tc.sr).GetScore(context.Background(), "foobar")
+			gotScorecardResult, err := NewClient(tc.sr).GetResult(context.Background(), tc.repository)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			if diff := cmp.Diff(tc.wantScore, gotScore); diff != "" {
+			if diff := cmp.Diff(tc.wantScorecardResult, gotScorecardResult); diff != "" {
 				t.Errorf("unexpected score:\n%s", diff)
 			}
 		})

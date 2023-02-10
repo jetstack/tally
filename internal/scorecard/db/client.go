@@ -7,7 +7,7 @@ import (
 
 	"github.com/jetstack/tally/internal/db"
 	"github.com/jetstack/tally/internal/scorecard"
-	"github.com/jetstack/tally/internal/types"
+	"github.com/ossf/scorecard-webapp/app/generated/models"
 )
 
 // ClientName is the name of the client
@@ -29,7 +29,7 @@ func (c *Client) Name() string {
 }
 
 // GetScore retrieves scores from the tally database
-func (c *Client) GetScore(ctx context.Context, repository string) (*types.Score, error) {
+func (c *Client) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
 	// Get the aggregate score
 	s, err := c.d.GetScores(ctx, repository)
 	if errors.Is(err, db.ErrNotFound) {
@@ -41,9 +41,11 @@ func (c *Client) GetScore(ctx context.Context, repository string) (*types.Score,
 	if len(s) != 1 {
 		return nil, fmt.Errorf("expected 1 score but got %d: %w", len(s), scorecard.ErrUnexpectedResponse)
 	}
-	score := &types.Score{
-		Score:  s[0].Score,
-		Checks: map[string]int{},
+	result := &models.ScorecardResult{
+		Repo: &models.Repo{
+			Name: repository,
+		},
+		Score: s[0].Score,
 	}
 
 	// Get the individual check scores
@@ -55,10 +57,13 @@ func (c *Client) GetScore(ctx context.Context, repository string) (*types.Score,
 		return nil, err
 	}
 	for _, check := range checks {
-		score.Checks[check.Name] = check.Score
+		result.Checks = append(result.Checks, &models.ScorecardCheck{
+			Name:  check.Name,
+			Score: int64(check.Score),
+		})
 	}
 
-	return score, nil
+	return result, nil
 }
 
 // ConcurrencyLimit indicates that the client cannot be ran concurrently

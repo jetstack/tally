@@ -1,15 +1,18 @@
 package scorecard
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 
-	"github.com/jetstack/tally/internal/types"
+	"github.com/ossf/scorecard-webapp/app/generated/models"
 	"github.com/ossf/scorecard/v4/checker"
 	"github.com/ossf/scorecard/v4/checks"
 	docs "github.com/ossf/scorecard/v4/docs/checks"
+	"github.com/ossf/scorecard/v4/log"
 	"github.com/ossf/scorecard/v4/pkg"
 )
 
@@ -29,8 +32,9 @@ var (
 
 // Client fetches scorecard results for repositories
 type Client interface {
-	// GetScore retrieves the scorecard score for the given repository
-	GetScore(ctx context.Context, repository string) (*types.Score, error)
+	// GetResult retrieves a scorecard result for the given platform, org
+	// and repo
+	GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error)
 
 	// ConcurrencyLimit indicates the maximum number of concurrent invocations
 	// the client supports. A value of 0 indicates that there is no limit.
@@ -60,8 +64,8 @@ func (c *ScorecardClient) Name() string {
 	return ScorecardClientName
 }
 
-// GetScore generates a scorecard score with the scorecard client
-func (c *ScorecardClient) GetScore(ctx context.Context, repository string) (*types.Score, error) {
+// GetResult generates a scorecard result with the scorecard client
+func (c *ScorecardClient) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
 	repoURI, repoClient, ossFuzzRepoClient, ciiClient, vulnsClient, err := checker.GetClients(
 		ctx, repository, "", nil)
 	if err != nil {
@@ -94,20 +98,17 @@ func (c *ScorecardClient) GetScore(ctx context.Context, repository string) (*typ
 		return nil, fmt.Errorf("running scorecards: %w", errors.Join(ErrNotFound, err))
 	}
 
-	score := &types.Score{
-		Checks: map[string]int{},
-	}
-	for _, check := range res.Checks {
-		score.Checks[check.Name] = check.Score
+	var buf bytes.Buffer
+	if err := res.AsJSON2(true, log.FatalLevel, checkDocs, &buf); err != nil {
+		return nil, fmt.Errorf("formatting results as JSON v2: %w", err)
 	}
 
-	s, err := res.GetAggregateScore(checkDocs)
-	if err != nil {
-		return nil, fmt.Errorf("getting aggregate score: %w", errors.Join(ErrNotFound, err))
+	result := &models.ScorecardResult{}
+	if err := json.Unmarshal(buf.Bytes(), result); err != nil {
+		return nil, fmt.Errorf("unmarshaling result from json: %w", err)
 	}
-	score.Score = s
 
-	return score, nil
+	return result, nil
 }
 
 // ConcurrencyLimit indicates that the client cannot be ran concurrently

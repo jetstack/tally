@@ -11,28 +11,28 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jetstack/tally/internal/types"
+	"github.com/ossf/scorecard-webapp/app/generated/models"
 	_ "modernc.org/sqlite"
 )
 
 const (
 	createTableStatement = `
-CREATE TABLE IF NOT EXISTS scores (
+CREATE TABLE IF NOT EXISTS results (
   repository text NOT NULL UNIQUE,
-  score text NOT NULL,
+  result text NOT NULL,
   timestamp DATETIME NOT NULL
 );
 `
 
-	selectScoreQuery = `
-SELECT score, timestamp
-FROM scores
+	selectResultQuery = `
+SELECT result, timestamp
+FROM results
 WHERE repository = ?;
 `
 
-	insertScoreStatement = `
-INSERT or REPLACE INTO scores
-(repository, score, timestamp)
+	insertResultStatement = `
+INSERT or REPLACE INTO results
+(repository, result, timestamp)
 VALUES (?, ?, ?)
 `
 )
@@ -78,12 +78,12 @@ func NewSqliteCache(dbDir string, opts ...Option) (Cache, error) {
 	}, nil
 }
 
-// GetScore will retrieve a score from the cache
-func (c *sqliteCache) GetScore(ctx context.Context, repository string) (*types.Score, error) {
+// GetResult will retrieve a scorecard result from the cache
+func (c *sqliteCache) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	rows, err := c.db.QueryContext(ctx, selectScoreQuery, repository)
+	rows, err := c.db.QueryContext(ctx, selectResultQuery, repository)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -93,13 +93,13 @@ func (c *sqliteCache) GetScore(ctx context.Context, repository string) (*types.S
 	defer rows.Close()
 
 	type row struct {
-		Score     []byte
+		Result    []byte
 		Timestamp time.Time
 	}
 	var resp []row
 	for rows.Next() {
 		var r row
-		if err := rows.Scan(&r.Score, &r.Timestamp); err != nil {
+		if err := rows.Scan(&r.Result, &r.Timestamp); err != nil {
 			return nil, fmt.Errorf("scanning row: %w", err)
 		}
 		resp = append(resp, r)
@@ -112,26 +112,26 @@ func (c *sqliteCache) GetScore(ctx context.Context, repository string) (*types.S
 		return nil, ErrNotFound
 	}
 
-	score := &types.Score{}
-	if err := json.Unmarshal(resp[0].Score, score); err != nil {
+	result := &models.ScorecardResult{}
+	if err := json.Unmarshal(resp[0].Result, result); err != nil {
 		return nil, fmt.Errorf("unmarshaling score from json: %w", err)
 	}
 
-	return score, nil
+	return result, nil
 }
 
-// PutScore will put a score into the cache
-func (c *sqliteCache) PutScore(ctx context.Context, repository string, score *types.Score) error {
+// PutResult will put a scorecard result into the cache
+func (c *sqliteCache) PutResult(ctx context.Context, repository string, result *models.ScorecardResult) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	scoreData, err := json.Marshal(score)
+	scoreData, err := json.Marshal(result)
 	if err != nil {
 		return fmt.Errorf("marshaling score to JSON: %w", err)
 	}
 	if _, err := c.db.ExecContext(
 		ctx,
-		insertScoreStatement,
+		insertResultStatement,
 		repository,
 		scoreData,
 		c.timeNow(),

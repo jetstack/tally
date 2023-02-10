@@ -110,8 +110,7 @@ SYSTEM PACKAGE                     VERSION REPOSITORY                           
 GO     cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3
 ```
 
-The `json` output will print the full output in JSON format, including the
-individual check scores:
+The `json` output will print the full output in JSON format:
 
 ```
 $ tally -o json bom.json | jq -r .
@@ -124,26 +123,20 @@ $ tally -o json bom.json | jq -r .
         "name": "com.google.http-client:google-http-client-jackson2"
       }
     ],
-    "score": {
-      "score": 7.9,
-      "checks": {
-        "Binary-Artifacts": 10,
-        "Branch-Protection": 8,
-        "CII-Best-Practices": 0,
-        "Code-Review": 10,
-        "Dangerous-Workflow": 10,
-        "Dependency-Update-Tool": 10,
-        "Fuzzing": 0,
-        "License": 10,
-        "Maintained": 10,
-        "Packaging": 0,
-        "Pinned-Dependencies": 9,
-        "SAST": 0,
-        "Security-Policy": 10,
-        "Signed-Releases": 0,
-        "Token-Permissions": 0,
-        "Vulnerabilities": 10
-      }
+    "scorecard_result": {
+      "date": "2023-03-04",
+      "repo": {
+        "name": "github.com/googleapis/google-http-java-client",
+        "commit": "4e889b702b8bbfb082b7a3234569dc173c1c286d"
+      },
+      "scorecard": {
+        "version": "v4.8.0",
+        "commit": "c40859202d739b31fd060ac5b30d17326cd74275"
+      },
+      "score": 7,
+      "checks": [
+        ...
+      ]
     }
   },
   ...

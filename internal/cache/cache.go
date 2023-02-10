@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/jetstack/tally/internal/types"
+	"github.com/ossf/scorecard-webapp/app/generated/models"
 	_ "modernc.org/sqlite"
 )
 
@@ -13,9 +13,9 @@ var ErrNotFound = errors.New("not found in cache")
 
 // Cache caches results
 type Cache interface {
-	// GetScore retrieves a score from the cache
-	GetScore(ctx context.Context, repository string) (*types.Score, error)
+	// GetResult retrieves a scorecard result from the cache
+	GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error)
 
-	// PutScore inserts a score into the cache
-	PutScore(ctx context.Context, repository string, score *types.Score) error
+	// PutResult inserts a score into the cache
+	PutResult(ctx context.Context, repository string, result *models.ScorecardResult) error
 }

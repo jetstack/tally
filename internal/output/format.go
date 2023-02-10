@@ -57,8 +57,8 @@ func writeShort(w io.Writer, results []types.Result) error {
 		if _, ok := printed[result.Repository]; ok {
 			continue
 		}
-		if result.Score != nil {
-			fmt.Fprintf(tw, "%s\t%.1f\n", result.Repository, result.Score.Score)
+		if result.ScorecardResult != nil {
+			fmt.Fprintf(tw, "%s\t%.1f\n", result.Repository, result.ScorecardResult.Score)
 		} else {
 			fmt.Fprintf(tw, "%s\t%s\n", result.Repository, " ")
 		}
@@ -75,8 +75,8 @@ func writeWide(w io.Writer, results []types.Result) error {
 
 	for _, result := range results {
 		for _, pkg := range result.Packages {
-			if result.Score != nil {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.System, pkg.Name, result.Repository, result.Score.Score)
+			if result.ScorecardResult != nil {
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.System, pkg.Name, result.Repository, result.ScorecardResult.Score)
 			} else {
 				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", pkg.System, pkg.Name, result.Repository, " ")
 			}

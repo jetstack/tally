@@ -12,23 +12,38 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jetstack/tally/internal/scorecard"
-	"github.com/jetstack/tally/internal/types"
 	"github.com/ossf/scorecard-webapp/app/generated/models"
 )
 
 func TestClientGetScore(t *testing.T) {
 	type testCase struct {
-		scorecardHandler func(w http.ResponseWriter, r *http.Request)
-		githubHandler    func(w http.ResponseWriter, r *http.Request)
-		repository       string
-		wantErr          error
-		wantScore        *types.Score
+		scorecardHandler    func(w http.ResponseWriter, r *http.Request)
+		githubHandler       func(w http.ResponseWriter, r *http.Request)
+		repository          string
+		wantErr             error
+		wantScorecardResult *models.ScorecardResult
 	}
 	testCases := map[string]func(t *testing.T) *testCase{
 		"should return expected score": func(t *testing.T) *testCase {
 			platform := "github.com"
 			org := "foo"
 			repo := "bar"
+			wantScorecardResult := &models.ScorecardResult{
+				Repo: &models.Repo{
+					Name: fmt.Sprintf("%s/%s/%s", platform, org, repo),
+				},
+				Score: 6.5,
+				Checks: []*models.ScorecardCheck{
+					{
+						Name:  "foo",
+						Score: 7,
+					},
+					{
+						Name:  "bar",
+						Score: 5,
+					},
+				},
+			}
 			return &testCase{
 				repository: strings.Join([]string{platform, org, repo}, "/"),
 				scorecardHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -46,35 +61,13 @@ func TestClientGetScore(t *testing.T) {
 						t.Fatalf("unexpected platform; wanted %s but got %s", repo, parts[2])
 					}
 
-					result := &models.ScorecardResult{
-						Repo: &models.Repo{
-							Name: fmt.Sprintf("%s/%s/%s", platform, org, repo),
-						},
-						Score: 6.5,
-						Checks: []*models.ScorecardCheck{
-							{
-								Name:  "foo",
-								Score: 7,
-							},
-							{
-								Name:  "bar",
-								Score: 5,
-							},
-						},
-					}
 					w.Header().Set("Content-type", "application/json")
-					json.NewEncoder(w).Encode(result)
+					json.NewEncoder(w).Encode(wantScorecardResult)
 				},
 				githubHandler: func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
 				},
-				wantScore: &types.Score{
-					Score: 6.5,
-					Checks: map[string]int{
-						"foo": 7,
-						"bar": 5,
-					},
-				},
+				wantScorecardResult: wantScorecardResult,
 			}
 		},
 		"should return scorecard.ErrNotFound when API returns a 404 response": func(t *testing.T) *testCase {
@@ -170,11 +163,11 @@ func TestClientGetScore(t *testing.T) {
 				t.Fatalf("unexpected error creating client: %s", err)
 			}
 
-			gotScore, err := c.GetScore(context.Background(), tc.repository)
+			gotScorecardResult, err := c.GetResult(context.Background(), tc.repository)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			if diff := cmp.Diff(tc.wantScore, gotScore); diff != "" {
+			if diff := cmp.Diff(tc.wantScorecardResult, gotScorecardResult); diff != "" {
 				t.Errorf("unexpected score:\n%s", diff)
 			}
 		})

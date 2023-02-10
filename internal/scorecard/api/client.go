@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/jetstack/tally/internal/scorecard"
-	"github.com/jetstack/tally/internal/types"
 	"github.com/ossf/scorecard-webapp/app/generated/models"
 )
 
@@ -61,8 +60,8 @@ func (c *Client) Name() string {
 	return ClientName
 }
 
-// GetScore fetches a score from the public scorecard API
-func (c *Client) GetScore(ctx context.Context, repository string) (*types.Score, error) {
+// GetResult fetches a scorecard result from the public scorecard API
+func (c *Client) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
 	parts := strings.Split(repository, "/")
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("unexpected number of parts in %s; wanted 3 but got %d: %w", repository, len(parts), scorecard.ErrInvalidRepository)
@@ -98,18 +97,7 @@ func (c *Client) GetScore(ctx context.Context, repository string) (*types.Score,
 		return nil, fmt.Errorf("fetching result: %w", err)
 	}
 
-	score := &types.Score{
-		Score:  result.Score,
-		Checks: map[string]int{},
-	}
-	for _, check := range result.Checks {
-		if check == nil {
-			continue
-		}
-		score.Checks[check.Name] = int(check.Score)
-	}
-
-	return score, nil
+	return result, nil
 }
 
 // ConcurrencyLimit indicates that the client can be ran concurrently

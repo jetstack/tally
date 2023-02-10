@@ -7,21 +7,21 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jetstack/tally/internal/scorecard"
-	"github.com/jetstack/tally/internal/types"
+	"github.com/ossf/scorecard-webapp/app/generated/models"
 )
 
 type mockCache struct {
-	repoToScore map[string]*types.Score
-	putErr      error
-	getErr      error
+	repoToScorecardResult map[string]*models.ScorecardResult
+	putErr                error
+	getErr                error
 }
 
-func (c *mockCache) GetScore(ctx context.Context, repository string) (*types.Score, error) {
+func (c *mockCache) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
 	if c.getErr != nil {
 		return nil, c.getErr
 	}
 
-	score, ok := c.repoToScore[repository]
+	score, ok := c.repoToScorecardResult[repository]
 	if !ok {
 		return nil, ErrNotFound
 	}
@@ -29,21 +29,21 @@ func (c *mockCache) GetScore(ctx context.Context, repository string) (*types.Sco
 	return score, nil
 }
 
-func (c *mockCache) PutScore(ctx context.Context, repository string, score *types.Score) error {
+func (c *mockCache) PutResult(ctx context.Context, repository string, result *models.ScorecardResult) error {
 	if c.putErr != nil {
 		return c.putErr
 	}
 
-	c.repoToScore[repository] = score
+	c.repoToScorecardResult[repository] = result
 
 	return nil
 }
 
 type mockScorecardClient struct {
-	repoToScore map[string]*types.Score
-	getErr      error
-	name        string
-	limit       int
+	repoToScorecardResult map[string]*models.ScorecardResult
+	getErr                error
+	name                  string
+	limit                 int
 }
 
 func (c *mockScorecardClient) Name() string {
@@ -54,74 +54,93 @@ func (c *mockScorecardClient) ConcurrencyLimit() int {
 	return c.limit
 }
 
-func (c *mockScorecardClient) GetScore(ctx context.Context, repository string) (*types.Score, error) {
+func (c *mockScorecardClient) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
 	if c.getErr != nil {
 		return nil, c.getErr
 	}
 
-	score, ok := c.repoToScore[repository]
+	result, ok := c.repoToScorecardResult[repository]
 	if !ok {
 		return nil, ErrNotFound
 	}
 
-	return score, nil
+	return result, nil
 }
 
 func TestScorecardClientGetScore(t *testing.T) {
 	type testCase struct {
-		repository      string
-		cache           Cache
-		scorecardClient scorecard.Client
-		wantScore       *types.Score
-		wantErr         error
+		repository          string
+		cache               Cache
+		scorecardClient     scorecard.Client
+		wantScorecardResult *models.ScorecardResult
+		wantErr             error
 	}
 	testCases := map[string]func(t *testing.T) *testCase{
 		"should return score from cache": func(t *testing.T) *testCase {
 			repository := "github.com/foo/bar"
-			wantScore := &types.Score{
-				Score: 4.5,
-				Checks: map[string]int{
-					"foo": 3,
-					"bar": 7,
+
+			wantScorecardResult := &models.ScorecardResult{
+				Repo: &models.Repo{
+					Name: repository,
+				},
+				Score: 7.2,
+				Checks: []*models.ScorecardCheck{
+					{
+						Name:  "foo",
+						Score: 8,
+					},
+					{
+						Name:  "bar",
+						Score: 2,
+					},
 				},
 			}
 			return &testCase{
 				repository: repository,
 				cache: &mockCache{
-					repoToScore: map[string]*types.Score{
-						repository: wantScore,
+					repoToScorecardResult: map[string]*models.ScorecardResult{
+						repository: wantScorecardResult,
 					},
 				},
 				scorecardClient: &mockScorecardClient{
-					repoToScore: map[string]*types.Score{
+					repoToScorecardResult: map[string]*models.ScorecardResult{
 						repository: {
 							Score: 2.1,
 						},
 					},
 				},
-				wantScore: wantScore,
+				wantScorecardResult: wantScorecardResult,
 			}
 		},
 		"should return score from client when cache returns ErrNotFound": func(t *testing.T) *testCase {
 			repository := "github.com/foo/bar"
-			wantScore := &types.Score{
-				Score: 4.5,
-				Checks: map[string]int{
-					"foo": 3,
-					"bar": 7,
+			wantScorecardResult := &models.ScorecardResult{
+				Repo: &models.Repo{
+					Name: repository,
+				},
+				Score: 7.2,
+				Checks: []*models.ScorecardCheck{
+					{
+						Name:  "foo",
+						Score: 8,
+					},
+					{
+						Name:  "bar",
+						Score: 2,
+					},
 				},
 			}
 			return &testCase{
 				repository: repository,
 				cache: &mockCache{
-					repoToScore: map[string]*types.Score{},
+					repoToScorecardResult: map[string]*models.ScorecardResult{},
 				},
 				scorecardClient: &mockScorecardClient{
-					repoToScore: map[string]*types.Score{
-						repository: wantScore,
+					repoToScorecardResult: map[string]*models.ScorecardResult{
+						repository: wantScorecardResult,
 					},
 				},
-				wantScore: wantScore,
+				wantScorecardResult: wantScorecardResult,
 			}
 		},
 		"should return error from cache": func(t *testing.T) *testCase {
@@ -150,24 +169,33 @@ func TestScorecardClientGetScore(t *testing.T) {
 		},
 		"shouldn't return error when cache has score": func(t *testing.T) *testCase {
 			repository := "github.com/foo/bar"
-			wantScore := &types.Score{
-				Score: 4.5,
-				Checks: map[string]int{
-					"foo": 3,
-					"bar": 7,
+			wantScorecardResult := &models.ScorecardResult{
+				Repo: &models.Repo{
+					Name: repository,
+				},
+				Score: 7.2,
+				Checks: []*models.ScorecardCheck{
+					{
+						Name:  "foo",
+						Score: 8,
+					},
+					{
+						Name:  "bar",
+						Score: 2,
+					},
 				},
 			}
 			return &testCase{
 				repository: repository,
 				cache: &mockCache{
-					repoToScore: map[string]*types.Score{
-						repository: wantScore,
+					repoToScorecardResult: map[string]*models.ScorecardResult{
+						repository: wantScorecardResult,
 					},
 				},
 				scorecardClient: &mockScorecardClient{
 					getErr: errors.New("foobar"),
 				},
-				wantScore: wantScore,
+				wantScorecardResult: wantScorecardResult,
 			}
 		},
 		"should return ErrNotFound when score not found in cache or client": func(t *testing.T) *testCase {
@@ -184,11 +212,11 @@ func TestScorecardClientGetScore(t *testing.T) {
 		t.Run(n, func(t *testing.T) {
 			tc := setup(t)
 
-			gotScore, err := NewScorecardClient(tc.cache, tc.scorecardClient).GetScore(context.Background(), tc.repository)
+			gotScorecardResult, err := NewScorecardClient(tc.cache, tc.scorecardClient).GetResult(context.Background(), tc.repository)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			if diff := cmp.Diff(tc.wantScore, gotScore); diff != "" {
+			if diff := cmp.Diff(tc.wantScorecardResult, gotScorecardResult); diff != "" {
 				t.Errorf("unexpected score:\n%s", diff)
 			}
 		})
