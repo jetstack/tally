@@ -13,7 +13,7 @@ require (
 	github.com/package-url/packageurl-go v0.1.0
 	github.com/spf13/cobra v1.6.1
 	google.golang.org/api v0.109.0
-	modernc.org/sqlite v1.20.3
+	modernc.org/sqlite v1.20.4
 )
 
 require (
