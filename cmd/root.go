@@ -25,8 +25,9 @@ type rootOptions struct {
 	Cache          bool
 	CacheDir       string
 	CacheDuration  time.Duration
-	CheckForUpdate bool
+	DB             bool
 	DBRef          string
+	DBUpdate       bool
 	FailOn         float64Flag
 	Format         string
 	GenerateScores bool
@@ -52,28 +53,6 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("creating output writer: %w", err)
 		}
 
-		mgr, err := db.NewManager("", os.Stderr)
-		if err != nil {
-			return fmt.Errorf("creating database manager: %w", err)
-		}
-
-		// Update the database, if there's a new version available
-		if ro.CheckForUpdate {
-			updated, err := mgr.PullDB(ctx, ro.DBRef)
-			if err != nil {
-				return fmt.Errorf("importing database: %w", err)
-			}
-			if updated {
-				fmt.Fprintf(os.Stderr, "Pulled database.\n")
-			}
-		}
-
-		tallyDB, err := mgr.DB()
-		if err != nil {
-			return fmt.Errorf("getting database from manager: %w", err)
-		}
-		defer tallyDB.Close()
-
 		// Get packages from the BOM
 		var r io.ReadCloser
 		if args[0] == "-" {
@@ -94,12 +73,40 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		// Map packages to repositories using various different sources
-		repoMapper := repositories.From(
+		// Infer repositories from the name of the package and any
+		// information in the BOM
+		repoMappers := []repositories.Mapper{
 			repositories.PackageMapper,
 			repositories.BOMMapper(sbom),
-			repositories.DBMapper(tallyDB),
-		)
+		}
+
+		// Optionally, use the tally database to discover additional
+		// repository mappings
+		if ro.DB {
+			mgr, err := db.NewManager("", os.Stderr)
+			if err != nil {
+				return fmt.Errorf("creating database manager: %w", err)
+			}
+
+			// Update the database, if there's a new version available
+			if ro.DBUpdate {
+				updated, err := mgr.PullDB(ctx, ro.DBRef)
+				if err != nil {
+					return fmt.Errorf("importing database: %w", err)
+				}
+				if updated {
+					fmt.Fprintf(os.Stderr, "Pulled database.\n")
+				}
+			}
+
+			tallyDB, err := mgr.DB()
+			if err != nil {
+				return fmt.Errorf("getting database from manager: %w", err)
+			}
+			defer tallyDB.Close()
+
+			repoMappers = append(repoMappers, repositories.DBMapper(tallyDB))
+		}
 
 		// Fetch scores from the API
 		apiClient, err := scorecardapi.NewClient(ro.APIURL)
@@ -131,7 +138,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Get results
-		results, err := tally.Results(ctx, os.Stderr, repoMapper, scorecardClients, pkgs...)
+		results, err := tally.Results(ctx, os.Stderr, repositories.From(repoMappers...), scorecardClients, pkgs...)
 		if err != nil {
 			return fmt.Errorf("getting results: %w", err)
 		}
@@ -170,10 +177,11 @@ func init() {
 	rootCmd.Flags().StringVar(&ro.APIURL, "api-url", scorecardapi.DefaultURL, "scorecard API URL")
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", output.Formats))
 	rootCmd.Flags().BoolVarP(&ro.GenerateScores, "generate", "g", false, "generate scores for repositories that aren't in the database. The GITHUB_TOKEN environment variable must be set.")
-	rootCmd.Flags().BoolVar(&ro.CheckForUpdate, "check-for-update", true, "check for database update")
 	rootCmd.Flags().BoolVar(&ro.Cache, "cache", true, "cache scores locally")
 	rootCmd.Flags().StringVar(&ro.CacheDir, "cache-dir", "", "directory to cache scores in, defaults to $HOME/.cache/tally/cache on most systems")
 	rootCmd.Flags().DurationVar(&ro.CacheDuration, "cache-duration", 7*(24*time.Hour), "how long to cache scores for; defaults to 7 days")
+	rootCmd.Flags().BoolVar(&ro.DB, "db", true, "fetch repository mappings from the tally database")
 	rootCmd.Flags().StringVar(&ro.DBRef, "db-reference", "ghcr.io/jetstack/tally/db:v1", "image reference to download database from")
+	rootCmd.Flags().BoolVar(&ro.DBUpdate, "db-update", true, "check for database update")
 	rootCmd.Flags().Var(&ro.FailOn, "fail-on", "fail if a package is found with a score <= to the given value")
 }

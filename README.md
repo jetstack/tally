@@ -6,16 +6,6 @@ in a Software Bill of Materials.
 ⚠️ This tool is currently under active development. There will be breaking changes
 and how it works may change significantly as it matures.
 
-## Package types
-
-It currently supports the following package types:
-
-- NPM
-- Go
-- Maven
-- PyPI
-- Cargo
-
 ## Usage
 
 ### Basic
@@ -181,3 +171,8 @@ The database currently includes repository information for these package types:
 - Maven
 - PyPI
 - Cargo
+
+You can disable the database by setting `--db=false` when running tally.
+
+Every time `tally` runs it checks to see if there is an updated version of the
+database. This check can be disabled with `--db-update=false`.
