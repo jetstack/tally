@@ -1,4 +1,4 @@
-package bigquery
+package depsdev
 
 import (
 	"context"
@@ -11,16 +11,7 @@ import (
 )
 
 type mockDBWriter struct {
-	addChecks   func(context.Context, ...db.Check) error
 	addPackages func(context.Context, ...db.Package) error
-	addScores   func(context.Context, ...db.Score) error
-}
-
-func (w *mockDBWriter) AddChecks(ctx context.Context, checks ...db.Check) error {
-	if w.addChecks == nil {
-		return nil
-	}
-	return w.addChecks(ctx, checks...)
 }
 
 func (w *mockDBWriter) AddPackages(ctx context.Context, pkgs ...db.Package) error {
@@ -30,20 +21,13 @@ func (w *mockDBWriter) AddPackages(ctx context.Context, pkgs ...db.Package) erro
 	return w.addPackages(ctx, pkgs...)
 }
 
-func (w *mockDBWriter) AddScores(ctx context.Context, scores ...db.Score) error {
-	if w.addScores == nil {
-		return nil
-	}
-	return w.addScores(ctx, scores...)
-}
-
-type mockCheckIterator struct {
-	rows []checkRow
+type mockPackageIterator struct {
+	rows []row
 	idx  int
 	err  error
 }
 
-func (i *mockCheckIterator) Next(any interface{}) error {
+func (i *mockPackageIterator) Next(any interface{}) error {
 	if i.err != nil {
 		return i.err
 	}
@@ -51,13 +35,13 @@ func (i *mockCheckIterator) Next(any interface{}) error {
 		return iterator.Done
 	}
 
-	if row, ok := any.(*checkRow); ok {
-		if row == nil {
-			row = &checkRow{}
+	if r, ok := any.(*row); ok {
+		if r == nil {
+			r = &row{}
 		}
-		row.Name = i.rows[i.idx].Name
-		row.Repository = i.rows[i.idx].Repository
-		row.Score = i.rows[i.idx].Score
+		r.System = i.rows[i.idx].System
+		r.Name = i.rows[i.idx].Name
+		r.Repository = i.rows[i.idx].Repository
 	}
 
 	i.idx++
@@ -65,61 +49,62 @@ func (i *mockCheckIterator) Next(any interface{}) error {
 	return nil
 }
 
-func TestCheckSourceUpdate(t *testing.T) {
+func TestSourceUpdate(t *testing.T) {
 	testCases := map[string]struct {
-		newSrc      func(t *testing.T) *checkSrc
-		newDBWriter func(t *testing.T) db.DBWriter
+		newDBWriter func(t *testing.T) db.Writer
+		newSrc      func(t *testing.T) *src
 		wantErr     bool
 	}{
-		// Test that Update passes all the returned rows to AddChecks
+		// Test that Update passes all the returned rows to AddPackages
 		"happy path": {
-			newDBWriter: func(t *testing.T) db.DBWriter {
+			newDBWriter: func(t *testing.T) db.Writer {
 				return &mockDBWriter{
-					addChecks: func(ctx context.Context, gotChecks ...db.Check) error {
-						wantChecks := []db.Check{
+					addPackages: func(ctx context.Context, gotPackages ...db.Package) error {
+						wantPackages := []db.Package{
 							{
+								System:     "GO",
 								Name:       "foo",
 								Repository: "github.com/foo/bar",
-								Score:      7,
 							},
 							{
+								System:     "NPM",
 								Name:       "bar",
 								Repository: "github.com/bar/foo",
-								Score:      3,
 							},
 							{
-								Name:       "foo",
-								Repository: "github.com/bar/foo",
-								Score:      8,
+								System:     "CARGO",
+								Name:       "baz",
+								Repository: "github.com/baz/foo",
 							},
 						}
-						if diff := cmp.Diff(wantChecks, gotChecks); diff != "" {
-							t.Fatalf("unexpected checks:\n%s", diff)
+						if diff := cmp.Diff(wantPackages, gotPackages); diff != "" {
+							t.Fatalf("unexpected pkgs:\n%s", diff)
 						}
 
 						return nil
 					},
 				}
+
 			},
-			newSrc: func(t *testing.T) *checkSrc {
-				return &checkSrc{
+			newSrc: func(t *testing.T) *src {
+				return &src{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
-						return &mockCheckIterator{
-							rows: []checkRow{
+						return &mockPackageIterator{
+							rows: []row{
 								{
+									System:     "GO",
 									Name:       "foo",
 									Repository: "github.com/foo/bar",
-									Score:      7,
 								},
 								{
+									System:     "NPM",
 									Name:       "bar",
 									Repository: "github.com/bar/foo",
-									Score:      3,
 								},
 								{
-									Name:       "foo",
-									Repository: "github.com/bar/foo",
-									Score:      8,
+									System:     "CARGO",
+									Name:       "baz",
+									Repository: "github.com/baz/foo",
 								},
 							},
 						}, nil
@@ -129,36 +114,36 @@ func TestCheckSourceUpdate(t *testing.T) {
 				}
 			},
 		},
-		// Test that Update splits the checks up into batches, according
+		// Test that Update splits the packages up into batches, according
 		// to the configured batchSize
 		"batch": {
-			newDBWriter: func(t *testing.T) db.DBWriter {
+			newDBWriter: func(t *testing.T) db.Writer {
 				i := 0
 				return &mockDBWriter{
-					addChecks: func(ctx context.Context, gotChecks ...db.Check) error {
-						wantChecks := [][]db.Check{
+					addPackages: func(ctx context.Context, gotPackages ...db.Package) error {
+						wantPackages := [][]db.Package{
 							{
 								{
+									System:     "GO",
 									Name:       "foo",
 									Repository: "github.com/foo/bar",
-									Score:      7,
 								},
 								{
+									System:     "NPM",
 									Name:       "bar",
 									Repository: "github.com/bar/foo",
-									Score:      3,
 								},
 							},
 							{
 								{
-									Name:       "foo",
-									Repository: "github.com/bar/foo",
-									Score:      8,
+									System:     "CARGO",
+									Name:       "baz",
+									Repository: "github.com/baz/foo",
 								},
 							},
 						}
-						if diff := cmp.Diff(wantChecks[i], gotChecks); diff != "" {
-							t.Fatalf("unexpected checks:\n%s", diff)
+						if diff := cmp.Diff(wantPackages[i], gotPackages); diff != "" {
+							t.Fatalf("unexpected pkgs:\n%s", diff)
 						}
 
 						i++
@@ -166,26 +151,27 @@ func TestCheckSourceUpdate(t *testing.T) {
 						return nil
 					},
 				}
+
 			},
-			newSrc: func(t *testing.T) *checkSrc {
-				return &checkSrc{
+			newSrc: func(t *testing.T) *src {
+				return &src{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
-						return &mockCheckIterator{
-							rows: []checkRow{
+						return &mockPackageIterator{
+							rows: []row{
 								{
+									System:     "GO",
 									Name:       "foo",
 									Repository: "github.com/foo/bar",
-									Score:      7,
 								},
 								{
+									System:     "NPM",
 									Name:       "bar",
 									Repository: "github.com/bar/foo",
-									Score:      3,
 								},
 								{
-									Name:       "foo",
-									Repository: "github.com/bar/foo",
-									Score:      8,
+									System:     "CARGO",
+									Name:       "baz",
+									Repository: "github.com/baz/foo",
 								},
 							},
 						}, nil
@@ -196,19 +182,19 @@ func TestCheckSourceUpdate(t *testing.T) {
 			},
 		},
 		// Update should return an error when there's an error reading
-		// from BigQuery. AddChecks shouldn't be called.
+		// from BigQuery. AddPackages shouldn't be called.
 		"read error": {
-			newDBWriter: func(t *testing.T) db.DBWriter {
+			newDBWriter: func(t *testing.T) db.Writer {
 				return &mockDBWriter{
-					addChecks: func(ctx context.Context, gotChecks ...db.Check) error {
-						t.Fatalf("unexpected AddChecks call")
+					addPackages: func(ctx context.Context, gotPackages ...db.Package) error {
+						t.Fatalf("unexpected AddPackages call")
 
 						return nil
 					},
 				}
 			},
-			newSrc: func(t *testing.T) *checkSrc {
-				return &checkSrc{
+			newSrc: func(t *testing.T) *src {
+				return &src{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
 						return nil, fmt.Errorf("error")
 					},
@@ -218,25 +204,24 @@ func TestCheckSourceUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		// Update should return an error when there's an error calling
-		// AddChecks
+		// AddPackages
 		"write error": {
-			newDBWriter: func(t *testing.T) db.DBWriter {
+			newDBWriter: func(t *testing.T) db.Writer {
 				return &mockDBWriter{
-					addChecks: func(ctx context.Context, gotChecks ...db.Check) error {
+					addPackages: func(ctx context.Context, gotPackages ...db.Package) error {
 						return fmt.Errorf("error")
 					},
 				}
-
 			},
-			newSrc: func(t *testing.T) *checkSrc {
-				return &checkSrc{
+			newSrc: func(t *testing.T) *src {
+				return &src{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
-						return &mockCheckIterator{
-							rows: []checkRow{
+						return &mockPackageIterator{
+							rows: []row{
 								{
-									Name:       "foo",
-									Repository: "github.com/foo/bar",
-									Score:      7,
+									System:     "CARGO",
+									Name:       "baz",
+									Repository: "github.com/baz/foo",
 								},
 							},
 						}, nil
@@ -248,21 +233,22 @@ func TestCheckSourceUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		// Update should return an error when there's an error calling
-		// AddChecks
+		// AddPackages
 		"iterator error": {
-			newDBWriter: func(t *testing.T) db.DBWriter {
+			newDBWriter: func(t *testing.T) db.Writer {
 				return &mockDBWriter{
-					addChecks: func(ctx context.Context, gotChecks ...db.Check) error {
-						t.Fatalf("unexpected AddChecks call")
+					addPackages: func(ctx context.Context, gotPackages ...db.Package) error {
+						t.Fatalf("unexpected AddPackages call")
 
 						return nil
 					},
 				}
+
 			},
-			newSrc: func(t *testing.T) *checkSrc {
-				return &checkSrc{
+			newSrc: func(t *testing.T) *src {
+				return &src{
 					read: func(ctx context.Context, q string) (bqRowIterator, error) {
-						return &mockCheckIterator{err: fmt.Errorf("error")}, nil
+						return &mockPackageIterator{err: fmt.Errorf("error")}, nil
 					},
 					batchSize: 5000000,
 				}

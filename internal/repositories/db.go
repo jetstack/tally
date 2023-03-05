@@ -10,17 +10,18 @@ import (
 )
 
 type dbMapper struct {
-	d db.RepositoryReader
+	d db.Reader
 }
 
 // DBMapper returns a mapper that retrieves repositories from the tally database
-func DBMapper(d db.RepositoryReader) Mapper {
+func DBMapper(d db.Reader) Mapper {
 	return &dbMapper{
 		d: d,
 	}
 }
 
-// Repositories gets repositories from the tally database
+// Repositories gets repositories from the tally database for the provided
+// package
 func (m *dbMapper) Repositories(ctx context.Context, pkg types.Package) ([]string, error) {
 	repos, err := m.d.GetRepositories(ctx, pkg.System, pkg.Name)
 	if errors.Is(err, db.ErrNotFound) {

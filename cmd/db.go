@@ -8,8 +8,7 @@ import (
 	"cloud.google.com/go/bigquery"
 
 	"github.com/jetstack/tally/internal/db"
-	bqsrc "github.com/jetstack/tally/internal/db/bigquery/source"
-	"github.com/jetstack/tally/internal/manager"
+	"github.com/jetstack/tally/internal/depsdev"
 	"github.com/spf13/cobra"
 )
 
@@ -45,17 +44,12 @@ var dbCreateCmd = &cobra.Command{
 			return fmt.Errorf("creating big query client: %w", err)
 		}
 
-		mgr, err := manager.NewManager(manager.WithWriter(os.Stderr))
+		mgr, err := db.NewManager("", os.Stderr)
 		if err != nil {
 			return fmt.Errorf("creating database manager: %w", err)
 		}
 
-		srcs := []db.Source{
-			bqsrc.NewPackageSource(bq),
-			bqsrc.NewScoreSource(bq),
-			bqsrc.NewCheckSource(bq),
-		}
-		if err := mgr.CreateDB(ctx, srcs...); err != nil {
+		if err := mgr.CreateDB(ctx, depsdev.NewDBSource(bq)); err != nil {
 			return fmt.Errorf("creating database: %w", err)
 		}
 
@@ -72,7 +66,7 @@ var dbPullCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
-		mgr, err := manager.NewManager(manager.WithWriter(os.Stderr))
+		mgr, err := db.NewManager("", os.Stderr)
 		if err != nil {
 			return fmt.Errorf("creating database manager: %w", err)
 		}

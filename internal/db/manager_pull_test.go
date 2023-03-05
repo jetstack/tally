@@ -1,4 +1,4 @@
-package manager
+package db
 
 import (
 	"bytes"
@@ -71,6 +71,8 @@ func TestManagerPullDB(t *testing.T) {
 		// Import the existing database
 		"no update required": {
 			setup: func(t *testing.T, dir string) v1.Image {
+				os.MkdirAll(dir, os.ModePerm)
+
 				data := []byte("foobar")
 				if err := os.WriteFile(filepath.Join(dir, "tally.db"), data, os.ModePerm); err != nil {
 					t.Fatalf("unexpected error writing database file: %s", err)
@@ -117,6 +119,8 @@ func TestManagerPullDB(t *testing.T) {
 		// Import the database and overwrite an existing one
 		"overwrite": {
 			setup: func(t *testing.T, dir string) v1.Image {
+				os.MkdirAll(dir, os.ModePerm)
+
 				oldData := []byte("barfoo")
 				if err := os.WriteFile(filepath.Join(dir, "tally.db"), oldData, os.ModePerm); err != nil {
 					t.Fatalf("unexpected error writing database file: %s", err)
@@ -244,7 +248,7 @@ func TestManagerPullDB(t *testing.T) {
 				t.Fatalf("unexpected error writing image to registry: %s", err)
 			}
 
-			mgr, err := NewManager(WithDir(tmpDir))
+			mgr, err := NewManager(tmpDir, ioutil.Discard)
 			if err != nil {
 				t.Fatalf("unexpected error creating manager: %s", err)
 			}

@@ -1,4 +1,4 @@
-package manager
+package db
 
 import (
 	"context"
@@ -8,18 +8,17 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/jetstack/tally/internal/db"
 )
 
 type mockSrc struct {
 	name   string
-	update func(context.Context, db.DBWriter) error
+	update func(context.Context, Writer) error
 }
 
 func (m *mockSrc) String() string {
 	return m.name
 }
-func (m *mockSrc) Update(ctx context.Context, tallyDB db.DBWriter) error {
+func (m *mockSrc) Update(ctx context.Context, tallyDB Writer) error {
 	if m.update == nil {
 		return nil
 	}
@@ -34,12 +33,12 @@ func TestManagerCreateDB(t *testing.T) {
 	}
 	defer os.RemoveAll(dbDir)
 
-	mgr, err := NewManager(WithDir(dbDir))
+	mgr, err := NewManager(dbDir, ioutil.Discard)
 	if err != nil {
 		t.Fatalf("unexpected error creating manager: %s", err)
 	}
 
-	wantPkgs := map[db.Package][]string{
+	wantPkgs := map[Package][]string{
 		{
 			System: "GO",
 			Name:   "foobar",
@@ -53,45 +52,13 @@ func TestManagerCreateDB(t *testing.T) {
 		}: {"github.com/bar/foo"},
 	}
 
-	wantScores := map[string]float64{
-		"github.com/foo/bar": 8.4,
-		"github.com/bar/foo": 4.2,
-	}
-
-	wantChecks := map[string][]db.Check{
-		"github.com/foo/bar": {
-			{
-				Name:       "bar",
-				Score:      5,
-				Repository: "github.com/foo/bar",
-			},
-			{
-				Name:       "foo",
-				Score:      8,
-				Repository: "github.com/foo/bar",
-			},
-		},
-		"github.com/bar/foo": {
-			{
-				Name:       "bar",
-				Score:      2,
-				Repository: "github.com/bar/foo",
-			},
-			{
-				Name:       "foo",
-				Score:      7,
-				Repository: "github.com/bar/foo",
-			},
-		},
-	}
-
 	src := &mockSrc{
 		name: "mock",
-		update: func(ctx context.Context, tallyDB db.DBWriter) error {
-			var pkgs []db.Package
+		update: func(ctx context.Context, tallyDB Writer) error {
+			var pkgs []Package
 			for pkg, repos := range wantPkgs {
 				for _, repo := range repos {
-					pkgs = append(pkgs, db.Package{
+					pkgs = append(pkgs, Package{
 						System:     pkg.System,
 						Name:       pkg.Name,
 						Repository: repo,
@@ -100,23 +67,6 @@ func TestManagerCreateDB(t *testing.T) {
 			}
 			if err := tallyDB.AddPackages(ctx, pkgs...); err != nil {
 				t.Fatalf("unexpected error adding packages: %s", err)
-			}
-
-			var scores []db.Score
-			for repo, score := range wantScores {
-				scores = append(scores, db.Score{
-					Repository: repo,
-					Score:      score,
-				})
-			}
-			if err := tallyDB.AddScores(ctx, scores...); err != nil {
-				t.Fatalf("unexpected error adding scores: %s", err)
-			}
-
-			for _, checks := range wantChecks {
-				if err := tallyDB.AddChecks(ctx, checks...); err != nil {
-					t.Fatalf("unexpected error adding checks: %s", err)
-				}
 			}
 
 			return nil
@@ -143,32 +93,6 @@ func TestManagerCreateDB(t *testing.T) {
 		}
 	}
 
-	for repo, wantScore := range wantScores {
-		gotScores, err := tallyDB.GetScores(context.Background(), repo)
-		if err != nil {
-			t.Fatalf("unexpected error getting score: %s", err)
-		}
-		wantScores := []db.Score{
-			{
-				Repository: repo,
-				Score:      wantScore,
-			},
-		}
-		if diff := cmp.Diff(wantScores, gotScores); diff != "" {
-			t.Fatalf("unexpected scores:\n%s", diff)
-		}
-	}
-
-	for repo, checks := range wantChecks {
-		gotChecks, err := tallyDB.GetChecks(context.Background(), repo)
-		if err != nil {
-			t.Fatalf("unexpected error getting checks: %s", err)
-		}
-		if diff := cmp.Diff(checks, gotChecks); diff != "" {
-			t.Fatalf("unexpected checks for %s:\n%s", repo, diff)
-		}
-	}
-
 	metadata, err := mgr.Metadata()
 	if err != nil {
 		t.Fatalf("unexpected error getting metadata: %s", err)
@@ -185,16 +109,16 @@ func TestManagerCreateDB_UpdateError(t *testing.T) {
 	}
 	defer os.RemoveAll(dbDir)
 
-	mgr, err := NewManager(WithDir(dbDir))
+	mgr, err := NewManager(dbDir, ioutil.Discard)
 	if err != nil {
 		t.Fatalf("unexpected error creating manager: %s", err)
 	}
 
-	srcs := []db.Source{
+	srcs := []Source{
 		&mockSrc{
 			name: "adds packages",
-			update: func(ctx context.Context, tallyDB db.DBWriter) error {
-				if err := tallyDB.AddPackages(ctx, []db.Package{
+			update: func(ctx context.Context, tallyDB Writer) error {
+				if err := tallyDB.AddPackages(ctx, []Package{
 					{
 						System:     "GO",
 						Name:       "foobar",
@@ -214,13 +138,13 @@ func TestManagerCreateDB_UpdateError(t *testing.T) {
 		},
 		&mockSrc{
 			name: "returns an error",
-			update: func(ctx context.Context, tallyDB db.DBWriter) error {
+			update: func(ctx context.Context, tallyDB Writer) error {
 				return fmt.Errorf("gerror")
 			},
 		},
 		&mockSrc{
 			name: "shouldn't be called",
-			update: func(ctx context.Context, tallyDB db.DBWriter) error {
+			update: func(ctx context.Context, tallyDB Writer) error {
 				t.Fatalf("unexpected call to third source in slice")
 				return nil
 			},
@@ -249,7 +173,7 @@ func TestManagerCreateDB_Overwrite(t *testing.T) {
 	}
 	defer os.RemoveAll(dbDir)
 
-	mgr, err := NewManager(WithDir(dbDir))
+	mgr, err := NewManager(dbDir, ioutil.Discard)
 	if err != nil {
 		t.Fatalf("unexpected error creating manager: %s", err)
 	}
@@ -264,8 +188,8 @@ func TestManagerCreateDB_Overwrite(t *testing.T) {
 
 	src := &mockSrc{
 		name: "mock",
-		update: func(ctx context.Context, tallyDB db.DBWriter) error {
-			if err := tallyDB.AddPackages(ctx, []db.Package{
+		update: func(ctx context.Context, tallyDB Writer) error {
+			if err := tallyDB.AddPackages(ctx, []Package{
 				{
 					System:     "GO",
 					Name:       "foobar",

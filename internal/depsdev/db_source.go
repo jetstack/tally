@@ -1,4 +1,4 @@
-package bigquery
+package depsdev
 
 import (
 	"context"
@@ -9,21 +9,29 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-type pkgSrc struct {
+// bqRead executes a bigquery query and returns an iterator
+type bqRead func(context.Context, string) (bqRowIterator, error)
+
+// bqRowIterator implements the methods of bigquery.RowIterator that we're using
+type bqRowIterator interface {
+	Next(interface{}) error
+}
+
+type src struct {
 	read      bqRead
 	batchSize int
 }
 
-type pkgRow struct {
+type row struct {
 	System     string `bigquery:"system"`
 	Name       string `bigquery:"name"`
 	Repository string `bigquery:"repository"`
 }
 
-// NewPackageSource returns a new source that fetches the package -> repository
-// relationships from the deps.dev dataset
-func NewPackageSource(bq *bigquery.Client) db.Source {
-	return &pkgSrc{
+// NewDBSource returns a new source that fetches the package -> repository
+// relationships from the deps.dev dataset and inserts them into the database
+func NewDBSource(bq *bigquery.Client) db.Source {
+	return &src{
 		read: func(ctx context.Context, qs string) (bqRowIterator, error) {
 			return bq.Query(qs).Read(ctx)
 		},
@@ -31,14 +39,14 @@ func NewPackageSource(bq *bigquery.Client) db.Source {
 	}
 }
 
-// String returns the name of the source.
-func (s *pkgSrc) String() string {
-	return "deps.dev packages"
+// String is the name of the source
+func (s *src) String() string {
+	return "deps.dev"
 }
 
 // Update finds the repository for the latest version of every Github-hosted
 // package in the deps.dev dataset and adds it to the database.
-func (s *pkgSrc) Update(ctx context.Context, w db.DBWriter) error {
+func (s *src) Update(ctx context.Context, w db.Writer) error {
 	qs := `
         SELECT DISTINCT t1.System, t1.Name, CONCAT('github.com/', t1.ProjectName) as repository
         FROM  ` + "`bigquery-public-data.deps_dev_v1.PackageVersionToProjectLatest`" + ` t1
@@ -67,8 +75,8 @@ func (s *pkgSrc) Update(ctx context.Context, w db.DBWriter) error {
 		// Insert after each batch of rows to avoid storing the
 		// entire dataset in memory
 		for len(pkgs) < s.batchSize {
-			var row pkgRow
-			err := it.Next(&row)
+			var r row
+			err := it.Next(&r)
 			if err == iterator.Done {
 				done = true
 				break
@@ -79,9 +87,9 @@ func (s *pkgSrc) Update(ctx context.Context, w db.DBWriter) error {
 			i++
 
 			pkgs = append(pkgs, db.Package{
-				Name:       row.Name,
-				System:     row.System,
-				Repository: row.Repository,
+				Name:       r.Name,
+				System:     r.System,
+				Repository: r.Repository,
 			})
 		}
 

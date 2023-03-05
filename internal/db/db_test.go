@@ -1,4 +1,4 @@
-package local
+package db
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/jetstack/tally/internal/db"
 )
 
 func TestAddPackagesGetRepositories(t *testing.T) {
@@ -29,11 +28,11 @@ func TestAddPackagesGetRepositories(t *testing.T) {
 
 	// There are no packages in the database, so we should get a not found
 	// error
-	if _, err := tallyDB.GetRepositories(context.Background(), "GO", "github.com/foo/bar"); err != db.ErrNotFound {
-		t.Fatalf("expected error %q but got: %q", db.ErrNotFound, err)
+	if _, err := tallyDB.GetRepositories(context.Background(), "GO", "github.com/foo/bar"); err != ErrNotFound {
+		t.Fatalf("expected error %q but got: %q", ErrNotFound, err)
 	}
 
-	packages := []db.Package{
+	packages := []Package{
 		{
 			System:     "GO",
 			Name:       "github.com/foo/bar",

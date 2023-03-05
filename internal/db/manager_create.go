@@ -1,4 +1,4 @@
-package manager
+package db
 
 import (
 	"context"
@@ -9,14 +9,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"github.com/jetstack/tally/internal/db"
-	"github.com/jetstack/tally/internal/db/local"
 )
 
 // CreateDB creates the database and populates it with data from the provided
 // sources.
-func (m *manager) CreateDB(ctx context.Context, srcs ...db.Source) error {
+func (m *manager) CreateDB(ctx context.Context, srcs ...Source) error {
 	tempDir, err := ioutil.TempDir("", "tally-db")
 	if err != nil {
 		return fmt.Errorf("creating temp directory: %w", err)
@@ -51,8 +48,8 @@ func (m *manager) CreateDB(ctx context.Context, srcs ...db.Source) error {
 	return nil
 }
 
-func (m *manager) createDB(ctx context.Context, dbPath string, srcs ...db.Source) error {
-	tallyDB, err := local.NewDB(dbPath, local.WithVacuumOnClose())
+func (m *manager) createDB(ctx context.Context, dbPath string, srcs ...Source) error {
+	tallyDB, err := NewDB(dbPath, WithVacuumOnClose())
 	if err != nil {
 		return fmt.Errorf("creating database client: %w", err)
 	}

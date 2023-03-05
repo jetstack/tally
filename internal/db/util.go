@@ -1,4 +1,4 @@
-package local
+package db
 
 func chunkSlice[T any](slice []T, chunkSize int) [][]T {
 	var chunks [][]T

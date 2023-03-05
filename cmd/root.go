@@ -9,7 +9,7 @@ import (
 
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/cache"
-	"github.com/jetstack/tally/internal/manager"
+	"github.com/jetstack/tally/internal/db"
 	"github.com/jetstack/tally/internal/output"
 	"github.com/jetstack/tally/internal/repositories"
 	"github.com/jetstack/tally/internal/scorecard"
@@ -52,7 +52,7 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("creating output writer: %w", err)
 		}
 
-		mgr, err := manager.NewManager(manager.WithWriter(os.Stderr))
+		mgr, err := db.NewManager("", os.Stderr)
 		if err != nil {
 			return fmt.Errorf("creating database manager: %w", err)
 		}
