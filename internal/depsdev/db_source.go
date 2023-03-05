@@ -3,6 +3,7 @@ package depsdev
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/jetstack/tally/internal/db"
@@ -86,11 +87,20 @@ func (s *src) Update(ctx context.Context, w db.Writer) error {
 			}
 			i++
 
-			pkgs = append(pkgs, db.Package{
+			// Transform the rows into our format before inserting
+			pkg := db.Package{
 				Name:       r.Name,
-				System:     r.System,
+				Type:       strings.ToLower(r.System),
 				Repository: r.Repository,
-			})
+			}
+			switch r.System {
+			case "GO":
+				pkg.Type = "golang"
+			case "MAVEN":
+				pkg.Name = strings.ReplaceAll(pkg.Name, ":", "/")
+			}
+
+			pkgs = append(pkgs, pkg)
 		}
 
 		if err := w.AddPackages(ctx, pkgs...); err != nil {

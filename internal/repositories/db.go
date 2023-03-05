@@ -23,7 +23,7 @@ func DBMapper(d db.Reader) Mapper {
 // Repositories gets repositories from the tally database for the provided
 // package
 func (m *dbMapper) Repositories(ctx context.Context, pkg types.Package) ([]string, error) {
-	repos, err := m.d.GetRepositories(ctx, pkg.System, pkg.Name)
+	repos, err := m.d.GetRepositories(ctx, pkg.Type, pkg.Name)
 	if errors.Is(err, db.ErrNotFound) {
 		return []string{}, nil
 	}

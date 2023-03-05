@@ -137,8 +137,8 @@ func TestMultiMapperRepositories(t *testing.T) {
 			}
 
 			gotRepos, err := From(mappers...).Repositories(context.Background(), types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			})
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("unexpected error: %s", err)

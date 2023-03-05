@@ -106,8 +106,8 @@ github.com/googleapis/google-cloud-go 9.3
 The `wide` output format will print additional package information:
 
 ```
-SYSTEM PACKAGE                     VERSION REPOSITORY                            SCORE
-GO     cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3
+TYPE   PACKAGE                     VERSION REPOSITORY                            SCORE
+golang cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3
 ```
 
 The `json` output will print the full output in JSON format:
@@ -119,8 +119,8 @@ $ tally -o json bom.json | jq -r .
     "repository": "github.com/googleapis/google-http-java-client",
     "packages" : [
       {
-        "system": "MAVEN",
-        "name": "com.google.http-client:google-http-client-jackson2"
+        "type": "maven",
+        "name": "com.google.http-client/google-http-client-jackson2"
       }
     ],
     "scorecard_result": {
@@ -173,3 +173,11 @@ repositories.
 
 Every time `tally` runs it will check for a new version of the database and pull
 it down if it finds one.
+
+The database currently includes repository information for these package types:
+
+- NPM
+- Go
+- Maven
+- PyPI
+- Cargo

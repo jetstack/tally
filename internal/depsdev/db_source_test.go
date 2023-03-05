@@ -62,17 +62,17 @@ func TestSourceUpdate(t *testing.T) {
 					addPackages: func(ctx context.Context, gotPackages ...db.Package) error {
 						wantPackages := []db.Package{
 							{
-								System:     "GO",
+								Type:       "golang",
 								Name:       "foo",
 								Repository: "github.com/foo/bar",
 							},
 							{
-								System:     "NPM",
+								Type:       "npm",
 								Name:       "bar",
 								Repository: "github.com/bar/foo",
 							},
 							{
-								System:     "CARGO",
+								Type:       "cargo",
 								Name:       "baz",
 								Repository: "github.com/baz/foo",
 							},
@@ -124,19 +124,19 @@ func TestSourceUpdate(t *testing.T) {
 						wantPackages := [][]db.Package{
 							{
 								{
-									System:     "GO",
+									Type:       "golang",
 									Name:       "foo",
 									Repository: "github.com/foo/bar",
 								},
 								{
-									System:     "NPM",
+									Type:       "npm",
 									Name:       "bar",
 									Repository: "github.com/bar/foo",
 								},
 							},
 							{
 								{
-									System:     "CARGO",
+									Type:       "cargo",
 									Name:       "baz",
 									Repository: "github.com/baz/foo",
 								},

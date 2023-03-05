@@ -71,14 +71,14 @@ func writeShort(w io.Writer, results []types.Result) error {
 func writeWide(w io.Writer, results []types.Result) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 	defer tw.Flush()
-	fmt.Fprintf(tw, "SYSTEM\tPACKAGE\tREPOSITORY\tSCORE\n")
+	fmt.Fprintf(tw, "TYPE\tPACKAGE\tREPOSITORY\tSCORE\n")
 
 	for _, result := range results {
 		for _, pkg := range result.Packages {
 			if result.ScorecardResult != nil {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.System, pkg.Name, result.Repository, result.ScorecardResult.Score)
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.Type, pkg.Name, result.Repository, result.ScorecardResult.Score)
 			} else {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", pkg.System, pkg.Name, result.Repository, " ")
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", pkg.Type, pkg.Name, result.Repository, " ")
 			}
 		}
 	}

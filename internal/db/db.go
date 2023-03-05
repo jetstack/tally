@@ -39,7 +39,7 @@ type Writer interface {
 
 // Package is a package associated with a repository
 type Package struct {
-	System     string
+	Type       string
 	Name       string
 	Repository string
 }
@@ -98,18 +98,18 @@ func (d *database) Initialize(ctx context.Context) error {
 	  name text NOT NULL UNIQUE
 	);
 
-	CREATE TABLE package_systems (
+	CREATE TABLE package_types (
 	  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	  name text NOT NULL UNIQUE
 	);
 
 	CREATE TABLE packages (
 	  name text NOT NULL,
-	  system_id interger NOT NULL,
+	  type_id interger NOT NULL,
 	  repository_id integer NOT NULL,
-	  FOREIGN KEY (system_id) REFERENCES package_systems (id),
+	  FOREIGN KEY (type_id) REFERENCES package_types (id),
 	  FOREIGN KEY (repository_id) REFERENCES repositories (id),
-	  PRIMARY KEY (name, system_id, repository_id)
+	  PRIMARY KEY (name, type_id, repository_id)
 	) WITHOUT ROWID;
 	`); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
@@ -124,10 +124,10 @@ func (d *database) AddPackages(ctx context.Context, pkgs ...Package) error {
 	// along with the package
 	if _, err := d.db.ExecContext(ctx, `
           CREATE TABLE packages_tmp (
-            system text NOT NULL,
+            type text NOT NULL,
             name text NOT NULL,
             repository text NOT NULL,
-            PRIMARY KEY (system,name,repository)
+            PRIMARY KEY (type,name,repository)
           ) WITHOUT ROWID;
         `); err != nil {
 		return fmt.Errorf("creating temporary table: %w", err)
@@ -139,7 +139,7 @@ func (d *database) AddPackages(ctx context.Context, pkgs ...Package) error {
 	for _, chunk := range chunkSlice(pkgs, 32766/3) {
 		q := `
 	        INSERT or IGNORE INTO packages_tmp
-	        (system, name, repository)
+	        (type, name, repository)
 	        VALUES 
 	        `
 		vals := []interface{}{}
@@ -147,7 +147,7 @@ func (d *database) AddPackages(ctx context.Context, pkgs ...Package) error {
 			q += "(?, ?, ?),"
 			vals = append(
 				vals,
-				pkg.System,
+				pkg.Type,
 				pkg.Name,
 				pkg.Repository,
 			)
@@ -169,25 +169,25 @@ func (d *database) AddPackages(ctx context.Context, pkgs ...Package) error {
 		return fmt.Errorf("inserting repositories: %w", err)
 	}
 
-	// Populate the package_systems table with all the distinct systems
+	// Populate the package_types table with all the distinct systems
 	if _, err := d.db.ExecContext(ctx, `
-	  INSERT or IGNORE INTO package_systems
+	  INSERT or IGNORE INTO package_types
 	  (name)
-	  SELECT DISTINCT packages_tmp.system
+	  SELECT DISTINCT packages_tmp.type
 	  FROM packages_tmp;
 	`); err != nil {
 		return fmt.Errorf("inserting package systems: %w", err)
 	}
 
 	// Insert the packages into the packages table, with the repository_id
-	// from the repositories table and the system_id from the
-	// package_systems table
+	// from the repositories table and the type_id from the
+	// package_types table
 	if _, err := d.db.ExecContext(ctx, `
           INSERT or IGNORE INTO packages
-          (system_id, name, repository_id)
-          SELECT package_systems.id, packages_tmp.name, repositories.id
-          FROM packages_tmp, repositories, package_systems
-          WHERE packages_tmp.repository = repositories.name AND packages_tmp.system = package_systems.name;
+          (type_id, name, repository_id)
+          SELECT package_types.id, packages_tmp.name, repositories.id
+          FROM packages_tmp, repositories, package_types
+          WHERE packages_tmp.repository = repositories.name AND packages_tmp.type = package_types.name;
         `); err != nil {
 		return fmt.Errorf("inserting packages from temporary table: %w", err)
 	}
@@ -201,18 +201,18 @@ func (d *database) AddPackages(ctx context.Context, pkgs ...Package) error {
 }
 
 // GetRepositories returns repositories associated with the provided package
-func (d *database) GetRepositories(ctx context.Context, system, name string) ([]string, error) {
+func (d *database) GetRepositories(ctx context.Context, pkgType, name string) ([]string, error) {
 	q := `
         SELECT repositories.name
-        FROM repositories, package_systems, packages
+        FROM repositories, package_types, packages
         WHERE packages.repository_id = repositories.id
-	AND packages.system_id = package_systems.id
-        AND package_systems.name IN (?)
+	AND packages.type_id = package_types.id
+        AND package_types.name IN (?)
 	AND packages.name IN (?)
 	ORDER BY repositories.name ASC;
         `
 
-	rows, err := d.db.QueryContext(ctx, q, system, name)
+	rows, err := d.db.QueryContext(ctx, q, pkgType, name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return []string{}, ErrNotFound

@@ -71,15 +71,6 @@ func TestSyftBOMPackages(t *testing.T) {
 		"an error should not be produced for an empty BOM": {
 			bom: &syftJSON{},
 		},
-		"unsupported packages should be ignored": {
-			bom: &syftJSON{
-				Artifacts: []syftArtifact{
-					{
-						Purl: "pkg:nuget/EnterpriseLibrary.Common@6.0.1304",
-					},
-				},
-			},
-		},
 		"components without a Purl should be ignored": {
 			bom: &syftJSON{
 				Artifacts: []syftArtifact{
@@ -103,8 +94,8 @@ func TestSyftBOMPackages(t *testing.T) {
 			},
 			wantPackages: []types.Package{
 				{
-					System: "MAVEN",
-					Name:   "org.hdrhistogram:HdrHistogram",
+					Type: "maven",
+					Name: "org.hdrhistogram/HdrHistogram",
 				},
 			},
 		},
@@ -130,24 +121,24 @@ func TestSyftBOMPackages(t *testing.T) {
 			},
 			wantPackages: []types.Package{
 				{
-					System: "MAVEN",
-					Name:   "org.hdrhistogram:HdrHistogram",
+					Type: "maven",
+					Name: "org.hdrhistogram/HdrHistogram",
 				},
 				{
-					System: "GO",
-					Name:   "sigs.k8s.io/release-utils",
+					Type: "golang",
+					Name: "sigs.k8s.io/release-utils",
 				},
 				{
-					System: "NPM",
-					Name:   "zwitch",
+					Type: "npm",
+					Name: "zwitch",
 				},
 				{
-					System: "CARGO",
-					Name:   "getrandom",
+					Type: "cargo",
+					Name: "getrandom",
 				},
 				{
-					System: "PYPI",
-					Name:   "zope.interface",
+					Type: "pypi",
+					Name: "zope.interface",
 				},
 			},
 		},

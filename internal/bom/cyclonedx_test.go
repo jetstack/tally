@@ -149,8 +149,8 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 			},
 			wantPackages: []types.Package{
 				{
-					System: "GO",
-					Name:   "foo/bar",
+					Type: "golang",
+					Name: "foo/bar",
 				},
 			},
 		},
@@ -171,12 +171,16 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 			},
 			wantPackages: []types.Package{
 				{
-					System: "GO",
-					Name:   "foo/bar",
+					Type: "golang",
+					Name: "foo/bar",
 				},
 				{
-					System: "MAVEN",
-					Name:   "org.hdrhistogram:HdrHistogram",
+					Type: "maven",
+					Name: "org.hdrhistogram/HdrHistogram",
+				},
+				{
+					Type: "deb",
+					Name: "debian/adduser",
 				},
 			},
 		},
@@ -208,29 +212,20 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 			},
 			wantPackages: []types.Package{
 				{
-					System: "GO",
-					Name:   "foo/bar",
+					Type: "golang",
+					Name: "foo/bar",
 				},
 				{
-					System: "GO",
-					Name:   "sigs.k8s.io/release-utils",
+					Type: "golang",
+					Name: "sigs.k8s.io/release-utils",
 				},
 				{
-					System: "MAVEN",
-					Name:   "org.hdrhistogram:HdrHistogram",
+					Type: "maven",
+					Name: "org.hdrhistogram/HdrHistogram",
 				},
 				{
-					System: "MAVEN",
-					Name:   "com.github.package-url:packageurl-java",
-				},
-			},
-		},
-		"unsupported packages should be ignored": {
-			bom: &cyclonedx.BOM{
-				Components: &[]cyclonedx.Component{
-					{
-						PackageURL: "pkg:nuget/EnterpriseLibrary.Common@6.0.1304",
-					},
+					Type: "maven",
+					Name: "com.github.package-url/packageurl-java",
 				},
 			},
 		},
@@ -259,8 +254,8 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 			},
 			wantPackages: []types.Package{
 				{
-					System: "MAVEN",
-					Name:   "org.hdrhistogram:HdrHistogram",
+					Type: "maven",
+					Name: "org.hdrhistogram/HdrHistogram",
 				},
 			},
 		},
@@ -286,24 +281,24 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 			},
 			wantPackages: []types.Package{
 				{
-					System: "MAVEN",
-					Name:   "org.hdrhistogram:HdrHistogram",
+					Type: "maven",
+					Name: "org.hdrhistogram/HdrHistogram",
 				},
 				{
-					System: "GO",
-					Name:   "sigs.k8s.io/release-utils",
+					Type: "golang",
+					Name: "sigs.k8s.io/release-utils",
 				},
 				{
-					System: "NPM",
-					Name:   "zwitch",
+					Type: "npm",
+					Name: "zwitch",
 				},
 				{
-					System: "CARGO",
-					Name:   "getrandom",
+					Type: "cargo",
+					Name: "getrandom",
 				},
 				{
-					System: "PYPI",
-					Name:   "zope.interface",
+					Type: "pypi",
+					Name: "zope.interface",
 				},
 			},
 		},
@@ -345,8 +340,8 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 				},
 			},
 			pkg: types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			},
 			wantRepos: []string{
 				"github.com/bar/foo",
@@ -367,8 +362,8 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 				},
 			},
 			pkg: types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			},
 			wantRepos: []string{
 				"github.com/bar/foo",
@@ -394,8 +389,8 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 				},
 			},
 			pkg: types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			},
 			wantRepos: []string{
 				"github.com/bar/foo",
@@ -420,8 +415,8 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 				},
 			},
 			pkg: types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			},
 			wantRepos: []string{
 				"github.com/bar/foo",
@@ -454,8 +449,8 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 				},
 			},
 			pkg: types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			},
 			wantRepos: []string{
 				"github.com/bar/foo",
@@ -488,8 +483,8 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 				},
 			},
 			pkg: types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			},
 			wantRepos: []string{
 				"github.com/bar/foo",
@@ -545,8 +540,8 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 				},
 			},
 			pkg: types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			},
 			wantRepos: []string{
 				"github.com/bar/foo",

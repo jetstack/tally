@@ -28,28 +28,28 @@ func TestAddPackagesGetRepositories(t *testing.T) {
 
 	// There are no packages in the database, so we should get a not found
 	// error
-	if _, err := tallyDB.GetRepositories(context.Background(), "GO", "github.com/foo/bar"); err != ErrNotFound {
+	if _, err := tallyDB.GetRepositories(context.Background(), "golang", "github.com/foo/bar"); err != ErrNotFound {
 		t.Fatalf("expected error %q but got: %q", ErrNotFound, err)
 	}
 
 	packages := []Package{
 		{
-			System:     "GO",
+			Type:       "golang",
 			Name:       "github.com/foo/bar",
 			Repository: "github.com/foo/bar",
 		},
 		{
-			System:     "GO",
+			Type:       "golang",
 			Name:       "github.com/foo/bar",
 			Repository: "github.com/foo/bar-foo",
 		},
 		{
-			System:     "NPM",
+			Type:       "npm",
 			Name:       "foo",
 			Repository: "github.com/bar/foo",
 		},
 		{
-			System:     "CARGO",
+			Type:       "cargo",
 			Name:       "bar",
 			Repository: "github.com/foo/bar",
 		},
@@ -63,7 +63,7 @@ func TestAddPackagesGetRepositories(t *testing.T) {
 		"github.com/foo/bar",
 		"github.com/foo/bar-foo",
 	}
-	got, err := tallyDB.GetRepositories(context.Background(), "GO", "github.com/foo/bar")
+	got, err := tallyDB.GetRepositories(context.Background(), "golang", "github.com/foo/bar")
 	if err != nil {
 		t.Fatalf("unexpected error getting packages: %s", err)
 	}
@@ -75,7 +75,7 @@ func TestAddPackagesGetRepositories(t *testing.T) {
 	want2 := []string{
 		"github.com/foo/bar",
 	}
-	got2, err := tallyDB.GetRepositories(context.Background(), "CARGO", "bar")
+	got2, err := tallyDB.GetRepositories(context.Background(), "cargo", "bar")
 	if err != nil {
 		t.Fatalf("unexpected error getting packages: %s", err)
 	}

@@ -56,8 +56,8 @@ func TestDBMapperRepositories(t *testing.T) {
 			tc := setup(t)
 
 			gotRepos, err := DBMapper(&mockDB{tc.getRepos}).Repositories(context.Background(), types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			})
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("unexpected error: %s", err)

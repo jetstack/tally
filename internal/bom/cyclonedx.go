@@ -1,14 +1,12 @@
 package bom
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
 	"github.com/CycloneDX/cyclonedx-go"
 	github_url "github.com/jetstack/tally/internal/github-url"
 	"github.com/jetstack/tally/internal/types"
-	"github.com/package-url/packageurl-go"
 )
 
 type cdxBOM struct {
@@ -127,14 +125,7 @@ func packageFromCycloneDXComponent(component cyclonedx.Component) (*types.Packag
 	if component.PackageURL == "" {
 		return nil, nil
 	}
-	purl, err := packageurl.FromString(component.PackageURL)
-	if err != nil {
-		return nil, err
-	}
-	pkg, err := packageFromPurl(purl)
-	if errors.Is(err, ErrUnsupportedPackageType) {
-		return nil, nil
-	}
+	pkg, err := packageFromPurl(component.PackageURL)
 	if err != nil {
 		return nil, err
 	}

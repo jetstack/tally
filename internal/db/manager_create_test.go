@@ -40,15 +40,15 @@ func TestManagerCreateDB(t *testing.T) {
 
 	wantPkgs := map[Package][]string{
 		{
-			System: "GO",
-			Name:   "foobar",
+			Type: "golang",
+			Name: "foobar",
 		}: {
 			"github.com/baz/foo",
 			"github.com/foo/bar",
 		},
 		{
-			System: "NPM",
-			Name:   "barfoo",
+			Type: "npm",
+			Name: "barfoo",
 		}: {"github.com/bar/foo"},
 	}
 
@@ -59,7 +59,7 @@ func TestManagerCreateDB(t *testing.T) {
 			for pkg, repos := range wantPkgs {
 				for _, repo := range repos {
 					pkgs = append(pkgs, Package{
-						System:     pkg.System,
+						Type:       pkg.Type,
 						Name:       pkg.Name,
 						Repository: repo,
 					})
@@ -84,7 +84,7 @@ func TestManagerCreateDB(t *testing.T) {
 	defer tallyDB.Close()
 
 	for pkg, wantRepos := range wantPkgs {
-		gotRepos, err := tallyDB.GetRepositories(context.Background(), pkg.System, pkg.Name)
+		gotRepos, err := tallyDB.GetRepositories(context.Background(), pkg.Type, pkg.Name)
 		if err != nil {
 			t.Fatalf("unexpected error getting repositories: %s", err)
 		}
@@ -120,12 +120,12 @@ func TestManagerCreateDB_UpdateError(t *testing.T) {
 			update: func(ctx context.Context, tallyDB Writer) error {
 				if err := tallyDB.AddPackages(ctx, []Package{
 					{
-						System:     "GO",
+						Type:       "golang",
 						Name:       "foobar",
 						Repository: "github.com/foo/bar",
 					},
 					{
-						System:     "NPM",
+						Type:       "npm",
 						Name:       "barfoo",
 						Repository: "github.com/bar/foo",
 					},
@@ -191,12 +191,12 @@ func TestManagerCreateDB_Overwrite(t *testing.T) {
 		update: func(ctx context.Context, tallyDB Writer) error {
 			if err := tallyDB.AddPackages(ctx, []Package{
 				{
-					System:     "GO",
+					Type:       "golang",
 					Name:       "foobar",
 					Repository: "github.com/foo/bar",
 				},
 				{
-					System:     "NPM",
+					Type:       "npm",
 					Name:       "barfoo",
 					Repository: "github.com/bar/foo",
 				},

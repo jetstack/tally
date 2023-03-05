@@ -29,7 +29,7 @@ func Results(ctx context.Context, w io.Writer, repoMapper repositories.Mapper, c
 	for _, pkg := range pkgs {
 		repos, err := repoMapper.Repositories(ctx, pkg)
 		if err != nil {
-			return nil, fmt.Errorf("getting repositories for package %s/%s: %w", pkg.System, pkg.Name, err)
+			return nil, fmt.Errorf("getting repositories for package %s/%s: %w", pkg.Type, pkg.Name, err)
 		}
 		// We want to include packages without a repository in the
 		// results

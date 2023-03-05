@@ -16,8 +16,8 @@ type pkgMapper struct{}
 // Repositories tries to infer repositories from information that is apparent
 // from the package itself
 func (m *pkgMapper) Repositories(ctx context.Context, pkg types.Package) ([]string, error) {
-	switch pkg.System {
-	case "GO":
+	switch pkg.Type {
+	case "golang":
 		if !strings.HasPrefix(pkg.Name, "github.com/") {
 			return []string{}, nil
 		}

@@ -2,11 +2,9 @@ package bom
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 
 	"github.com/jetstack/tally/internal/types"
-	"github.com/package-url/packageurl-go"
 )
 
 type syftJSON struct {
@@ -42,14 +40,7 @@ func (bom *syftBOM) Packages() ([]types.Package, error) {
 		if a.Purl == "" {
 			continue
 		}
-		purl, err := packageurl.FromString(a.Purl)
-		if err != nil {
-			return nil, err
-		}
-		pkg, err := packageFromPurl(purl)
-		if errors.Is(err, ErrUnsupportedPackageType) {
-			continue
-		}
+		pkg, err := packageFromPurl(a.Purl)
 		if err != nil {
 			return nil, err
 		}

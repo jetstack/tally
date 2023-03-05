@@ -15,22 +15,22 @@ func TestPackageMapperRepositories(t *testing.T) {
 	}{
 		"should extract repository Go package hosted on github.com": {
 			pkg: types.Package{
-				System: "GO",
-				Name:   "github.com/foo/bar",
+				Type: "golang",
+				Name: "github.com/foo/bar",
 			},
 			wantRepos: []string{"github.com/foo/bar"},
 		},
 		"shouldn't extract repository from Go package hosted on gitlab.com": {
 			pkg: types.Package{
-				System: "GO",
-				Name:   "gitlab.com/foo/bar",
+				Type: "golang",
+				Name: "gitlab.com/foo/bar",
 			},
 			wantRepos: []string{},
 		},
 		"shouldn't extract repository from non-Go package": {
 			pkg: types.Package{
-				System: "NPM",
-				Name:   "github.com/foo/bar",
+				Type: "npm",
+				Name: "github.com/foo/bar",
 			},
 			wantRepos: []string{},
 		},

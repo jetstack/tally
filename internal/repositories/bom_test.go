@@ -52,8 +52,8 @@ func TestBOMMapperRepositories(t *testing.T) {
 			tc := setup(t)
 			bom := &mockBOM{tc.repoFn}
 			gotRepos, err := BOMMapper(bom).Repositories(context.Background(), types.Package{
-				System: "GO",
-				Name:   "foo/bar",
+				Type: "golang",
+				Name: "foo/bar",
 			})
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("unexpected error: %s", err)
