@@ -34,10 +34,10 @@ You could also pipe the BOM directly to `tally`:
 $ syft prom/prometheus -o cyclonedx-json | tally -
 ```
 
-### Generate missing scores
+### Generate scores
 
 The public API may not have a score for every discovered repository but `tally`
-can generate these missing scores itself when the `-g/--generate` flag is
+can generate these scores itself when the `-g/--generate` flag is
 set.
 
 Scores are generated from the `HEAD` of the repository.
@@ -52,6 +52,9 @@ Generating score for 'github.com/foo/bar' [--------->..] 68/72
 ```
 
 This may take a while, depending on the number of missing scores.
+
+If you'd like to generate all the scores yourself, you can disable fetching
+scores from the API with `--api=false`.
 
 ### Cache
 
@@ -77,7 +80,7 @@ or equal to the value of `--fail-on`:
 ```
 $ tally --fail-on 3.5 bom.json
 ...
-error: found scores <= to 3.50
+Error: found scores <= to 3.50
 exit status 1
 ```
 

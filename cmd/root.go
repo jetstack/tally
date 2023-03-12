@@ -20,6 +20,7 @@ import (
 
 type rootOptions struct {
 	All            bool
+	API            bool
 	APITimeout     time.Duration
 	APIURL         string
 	Cache          bool
@@ -108,20 +109,30 @@ var rootCmd = &cobra.Command{
 			repoMappers = append(repoMappers, repositories.DBMapper(tallyDB))
 		}
 
-		// Fetch scores from the API
-		apiClient, err := scorecardapi.NewClient(ro.APIURL)
-		if err != nil {
-			return fmt.Errorf("configuring API client: %w", err)
-		}
-		scorecardClients := []scorecard.Client{apiClient}
+		var scorecardClients []scorecard.Client
 
-		// Optionally generate scores with the scorecard client
+		// Fetch scores from the API
+		if ro.API {
+			apiClient, err := scorecardapi.NewClient(ro.APIURL)
+			if err != nil {
+				return fmt.Errorf("configuring API client: %w", err)
+			}
+			scorecardClients = append(scorecardClients, apiClient)
+		}
+
+		// Generate scores with the scorecard client
 		if ro.GenerateScores {
 			sc, err := scorecard.NewScorecardClient()
 			if err != nil {
 				return fmt.Errorf("configuring scorecard client: %w", err)
 			}
 			scorecardClients = append(scorecardClients, sc)
+		}
+
+		// At least one scorecard client must be configured
+		if len(scorecardClients) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: no scorecard clients configured. At least one of --api or --generate must be set.\n")
+			os.Exit(1)
 		}
 
 		// Cache scorecard results locally to speed up subsequent runs
@@ -154,7 +165,7 @@ var rootCmd = &cobra.Command{
 				if result.ScorecardResult == nil || result.ScorecardResult.Score > *ro.FailOn.Value {
 					continue
 				}
-				fmt.Fprintf(os.Stderr, "error: found scores <= to %0.2f\n", *ro.FailOn.Value)
+				fmt.Fprintf(os.Stderr, "Error: found scores <= to %0.2f\n", *ro.FailOn.Value)
 				os.Exit(1)
 			}
 		}
@@ -173,6 +184,7 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringVarP(&ro.Format, "format", "f", string(bom.FormatCycloneDXJSON), fmt.Sprintf("BOM format, options=%s", bom.Formats))
 	rootCmd.Flags().BoolVarP(&ro.All, "all", "a", false, "print all packages, even those without a scorecard score")
+	rootCmd.Flags().BoolVar(&ro.API, "api", true, "fetch scores from the Scorecard API")
 	rootCmd.Flags().DurationVar(&ro.APITimeout, "api-timeout", scorecardapi.DefaultTimeout, "timeout for requests to scorecard API")
 	rootCmd.Flags().StringVar(&ro.APIURL, "api-url", scorecardapi.DefaultURL, "scorecard API URL")
 	rootCmd.Flags().StringVarP(&ro.Output, "output", "o", "short", fmt.Sprintf("output format, options=%s", output.Formats))
