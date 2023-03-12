@@ -100,11 +100,6 @@ func (c *Client) GetResult(ctx context.Context, repository string) (*models.Scor
 	return result, nil
 }
 
-// ConcurrencyLimit indicates that the client can be ran concurrently
-func (c *Client) ConcurrencyLimit() int {
-	return 0
-}
-
 func (c *Client) getResult(platform, org, repo string) (*models.ScorecardResult, error) {
 	uri, err := c.baseURL.Parse(fmt.Sprintf("/projects/%s/%s/%s", platform, org, repo))
 	if err != nil {

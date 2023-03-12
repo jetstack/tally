@@ -56,12 +56,8 @@ func Results(ctx context.Context, w io.Writer, repoMapper repositories.Mapper, c
 	defer bar.Finish()
 
 	for _, client := range clients {
-		limit := client.ConcurrencyLimit()
-		if limit < 1 {
-			limit = runtime.NumCPU()
-		}
 		var g errgroup.Group
-		g.SetLimit(limit)
+		g.SetLimit(runtime.NumCPU())
 		mux := sync.RWMutex{}
 		for i, result := range results {
 			if result.ScorecardResult != nil || result.Repository == "" {

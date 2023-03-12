@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/ossf/scorecard-webapp/app/generated/models"
@@ -14,6 +15,7 @@ import (
 	docs "github.com/ossf/scorecard/v4/docs/checks"
 	"github.com/ossf/scorecard/v4/log"
 	"github.com/ossf/scorecard/v4/pkg"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -35,10 +37,6 @@ type Client interface {
 	// GetResult retrieves a scorecard result for the given platform, org
 	// and repo
 	GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error)
-
-	// ConcurrencyLimit indicates the maximum number of concurrent invocations
-	// the client supports. A value of 0 indicates that there is no limit.
-	ConcurrencyLimit() int
 
 	// Name returns the name of this client
 	Name() string
@@ -66,8 +64,11 @@ func (c *ScorecardClient) Name() string {
 
 // GetResult generates a scorecard result with the scorecard client
 func (c *ScorecardClient) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
-	repoURI, repoClient, ossFuzzRepoClient, ciiClient, vulnsClient, err := checker.GetClients(
-		ctx, repository, "", nil)
+	// Scorecard requires a logger but we want to suppress its output
+	logger := logrus.New()
+	logger.Out = ioutil.Discard
+
+	repoURI, repoClient, ossFuzzRepoClient, ciiClient, vulnsClient, err := checker.GetClients(ctx, repository, "", log.NewLogrusLogger(logger))
 	if err != nil {
 		return nil, fmt.Errorf("getting clients: %w", errors.Join(ErrNotFound, err))
 	}
@@ -109,9 +110,4 @@ func (c *ScorecardClient) GetResult(ctx context.Context, repository string) (*mo
 	}
 
 	return result, nil
-}
-
-// ConcurrencyLimit indicates that the client cannot be ran concurrently
-func (c *ScorecardClient) ConcurrencyLimit() int {
-	return 1
 }

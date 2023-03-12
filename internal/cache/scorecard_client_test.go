@@ -43,15 +43,10 @@ type mockScorecardClient struct {
 	repoToScorecardResult map[string]*models.ScorecardResult
 	getErr                error
 	name                  string
-	limit                 int
 }
 
 func (c *mockScorecardClient) Name() string {
 	return c.name
-}
-
-func (c *mockScorecardClient) ConcurrencyLimit() int {
-	return c.limit
 }
 
 func (c *mockScorecardClient) GetResult(ctx context.Context, repository string) (*models.ScorecardResult, error) {
@@ -228,13 +223,5 @@ func TestScorecardClientName(t *testing.T) {
 	gotName := NewScorecardClient(&mockCache{}, &mockScorecardClient{name: wantName}).Name()
 	if gotName != wantName {
 		t.Errorf("unexpected name returned by caching client; wanted %s but got %s", wantName, gotName)
-	}
-}
-
-func TestScorecardClientConcurrencyLimit(t *testing.T) {
-	wantLimit := 13
-	gotLimit := NewScorecardClient(&mockCache{}, &mockScorecardClient{limit: wantLimit}).ConcurrencyLimit()
-	if gotLimit != wantLimit {
-		t.Errorf("unexpected concurrency limit returned by caching client; wanted %d but got %d", wantLimit, gotLimit)
 	}
 }
