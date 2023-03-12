@@ -9,7 +9,6 @@ import (
 
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/cache"
-	"github.com/jetstack/tally/internal/db"
 	"github.com/jetstack/tally/internal/output"
 	"github.com/jetstack/tally/internal/repositories"
 	"github.com/jetstack/tally/internal/scorecard"
@@ -26,9 +25,6 @@ type rootOptions struct {
 	Cache          bool
 	CacheDir       string
 	CacheDuration  time.Duration
-	DB             bool
-	DBRef          string
-	DBUpdate       bool
 	FailOn         float64Flag
 	Format         string
 	GenerateScores bool
@@ -79,34 +75,6 @@ var rootCmd = &cobra.Command{
 		repoMappers := []repositories.Mapper{
 			repositories.PackageMapper,
 			repositories.BOMMapper(sbom),
-		}
-
-		// Optionally, use the tally database to discover additional
-		// repository mappings
-		if ro.DB {
-			mgr, err := db.NewManager("", os.Stderr)
-			if err != nil {
-				return fmt.Errorf("creating database manager: %w", err)
-			}
-
-			// Update the database, if there's a new version available
-			if ro.DBUpdate {
-				updated, err := mgr.PullDB(ctx, ro.DBRef)
-				if err != nil {
-					return fmt.Errorf("importing database: %w", err)
-				}
-				if updated {
-					fmt.Fprintf(os.Stderr, "Pulled database.\n")
-				}
-			}
-
-			tallyDB, err := mgr.DB()
-			if err != nil {
-				return fmt.Errorf("getting database from manager: %w", err)
-			}
-			defer tallyDB.Close()
-
-			repoMappers = append(repoMappers, repositories.DBMapper(tallyDB))
 		}
 
 		var scorecardClients []scorecard.Client
@@ -192,8 +160,5 @@ func init() {
 	rootCmd.Flags().BoolVar(&ro.Cache, "cache", true, "cache scores locally")
 	rootCmd.Flags().StringVar(&ro.CacheDir, "cache-dir", "", "directory to cache scores in, defaults to $HOME/.cache/tally/cache on most systems")
 	rootCmd.Flags().DurationVar(&ro.CacheDuration, "cache-duration", 7*(24*time.Hour), "how long to cache scores for; defaults to 7 days")
-	rootCmd.Flags().BoolVar(&ro.DB, "db", true, "fetch repository mappings from the tally database")
-	rootCmd.Flags().StringVar(&ro.DBRef, "db-reference", "ghcr.io/jetstack/tally/db:v1", "image reference to download database from")
-	rootCmd.Flags().BoolVar(&ro.DBUpdate, "db-update", true, "check for database update")
 	rootCmd.Flags().Var(&ro.FailOn, "fail-on", "fail if a package is found with a score <= to the given value")
 }
