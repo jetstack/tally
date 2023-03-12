@@ -13,7 +13,7 @@ and how it works may change significantly as it matures.
 Generate an SBOM in CycloneDX JSON format and then scan it with `tally`.
 
 This uses the [public scorecard API](https://api.securityscorecards.dev/#/) to
-fetch scores.
+fetch the latest score for each repository.
 
 ```
 $ syft prom/prometheus -o cyclonedx-json > bom.json
@@ -39,6 +39,8 @@ $ syft prom/prometheus -o cyclonedx-json | tally -
 The public API may not have a score for every discovered repository but `tally`
 can generate these missing scores itself when the `-g/--generate` flag is
 set.
+
+Scores are generated from the `HEAD` of the repository.
 
 This requires that the `GITHUB_TOKEN` environment variable is set to a valid
 token.
@@ -96,8 +98,8 @@ github.com/googleapis/google-cloud-go 9.3
 The `wide` output format will print additional package information:
 
 ```
-TYPE   PACKAGE                     VERSION REPOSITORY                            SCORE
-golang cloud.google.com/go/compute v1.3.0  github.com/googleapis/google-cloud-go 9.3
+TYPE   PACKAGE                     REPOSITORY                            SCORE
+golang cloud.google.com/go/compute github.com/googleapis/google-cloud-go 9.3
 ```
 
 The `json` output will print the full output in JSON format:
