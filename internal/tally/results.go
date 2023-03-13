@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/cheggaaa/pb/v3"
-	"github.com/jetstack/tally/internal/repositories"
+	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/scorecard"
 	"github.com/jetstack/tally/internal/types"
 	"golang.org/x/sync/errgroup"
@@ -18,7 +18,7 @@ import (
 const pbTemplate = `{{ string . "message" }} {{ bar . "[" "-" ">" "." "]"}} {{counters . }}`
 
 // Results finds scorecard scores for the provided packages
-func Results(ctx context.Context, w io.Writer, repoMapper repositories.Mapper, clients []scorecard.Client, pkgs ...types.Package) ([]types.Result, error) {
+func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgs ...bom.Package) ([]types.Result, error) {
 	// If the writer is nil then just discard anything we write
 	if w == nil {
 		w = io.Discard
@@ -27,17 +27,17 @@ func Results(ctx context.Context, w io.Writer, repoMapper repositories.Mapper, c
 	// Map repositories to packages
 	repoPkgs := map[string][]types.Package{}
 	for _, pkg := range pkgs {
-		repos, err := repoMapper.Repositories(ctx, pkg)
-		if err != nil {
-			return nil, fmt.Errorf("getting repositories for package %s/%s: %w", pkg.Type, pkg.Name, err)
-		}
 		// We want to include packages without a repository in the
 		// results
+		repos := pkg.Repositories
 		if len(repos) == 0 {
 			repos = []string{""}
 		}
 		for _, repo := range repos {
-			repoPkgs[repo] = append(repoPkgs[repo], pkg)
+			repoPkgs[repo] = append(repoPkgs[repo], types.Package{
+				Type: pkg.Type,
+				Name: pkg.Name,
+			})
 		}
 	}
 

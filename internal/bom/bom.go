@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/CycloneDX/cyclonedx-go"
-	"github.com/jetstack/tally/internal/types"
 )
 
 // Format is a supported SBOM format
@@ -24,25 +23,34 @@ var Formats = []Format{
 	FormatSyftJSON,
 }
 
-// BOM is a generic representation of a BOM
-type BOM interface {
-	// Packages retrieves all the supported packages from the BOM
-	Packages() ([]types.Package, error)
-
-	// Repositories retrieves any repository information from the BOM for
-	// the provided package
-	Repositories(types.Package) ([]string, error)
+// Package is a generic representation of a package in an SBOM
+type Package struct {
+	Type         string
+	Name         string
+	Repositories []string
 }
 
-// ParseBOM parses a BOM from a given format
-func ParseBOM(r io.Reader, format Format) (BOM, error) {
+// PackagesFromBOM discovers packages in an SBOM
+func PackagesFromBOM(r io.Reader, format Format) ([]Package, error) {
 	switch format {
 	case FormatCycloneDXJSON:
-		return parseCycloneDX(r, cyclonedx.BOMFileFormatJSON)
+		bom, err := ParseCycloneDXBOM(r, cyclonedx.BOMFileFormatJSON)
+		if err != nil {
+			return nil, fmt.Errorf("parsing BOM in cyclonedx-json format: %w", err)
+		}
+		return PackagesFromCycloneDXBOM(bom)
 	case FormatCycloneDXXML:
-		return parseCycloneDX(r, cyclonedx.BOMFileFormatXML)
+		bom, err := ParseCycloneDXBOM(r, cyclonedx.BOMFileFormatXML)
+		if err != nil {
+			return nil, fmt.Errorf("parsing BOM in cyclonedx-xml format: %w", err)
+		}
+		return PackagesFromCycloneDXBOM(bom)
 	case FormatSyftJSON:
-		return parseSyftJSON(r)
+		bom, err := ParseSyftBOM(r)
+		if err != nil {
+			return nil, fmt.Errorf("parsing BOM in syft-json format: %w", err)
+		}
+		return PackagesFromSyftBOM(bom)
 	default:
 		return nil, fmt.Errorf("unsupported format: %s", format)
 	}

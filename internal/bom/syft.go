@@ -3,8 +3,6 @@ package bom
 import (
 	"encoding/json"
 	"io"
-
-	"github.com/jetstack/tally/internal/types"
 )
 
 type syftJSON struct {
@@ -15,11 +13,8 @@ type syftArtifact struct {
 	Purl string `json:"purl"`
 }
 
-type syftBOM struct {
-	bom *syftJSON
-}
-
-func parseSyftJSON(r io.Reader) (BOM, error) {
+// ParseSyftBOM parses a syft SBOM
+func ParseSyftBOM(r io.Reader) (*syftJSON, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -28,15 +23,14 @@ func parseSyftJSON(r io.Reader) (BOM, error) {
 	if err := json.Unmarshal(data, doc); err != nil {
 		return nil, err
 	}
-	return &syftBOM{
-		bom: doc,
-	}, nil
+
+	return doc, nil
 }
 
-// Packages returns all the supported packages in the BOM
-func (bom *syftBOM) Packages() ([]types.Package, error) {
-	var pkgs []types.Package
-	for _, a := range bom.bom.Artifacts {
+// PackagesFromSyftBOM discovers packages in a Syft BOM
+func PackagesFromSyftBOM(doc *syftJSON) ([]Package, error) {
+	var pkgs []Package
+	for _, a := range doc.Artifacts {
 		if a.Purl == "" {
 			continue
 		}
@@ -52,7 +46,17 @@ func (bom *syftBOM) Packages() ([]types.Package, error) {
 	return pkgs, nil
 }
 
-// Repositories doesn't return anything for the syft-json format
-func (bom *syftBOM) Repositories(pkg types.Package) ([]string, error) {
-	return []string{}, nil
+func containsPackage(pkgs []Package, pkg Package) bool {
+	for _, p := range pkgs {
+		if p.Name != pkg.Name {
+			continue
+		}
+		if p.Type != pkg.Type {
+			continue
+		}
+
+		return true
+	}
+
+	return false
 }

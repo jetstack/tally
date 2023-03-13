@@ -10,7 +10,6 @@ import (
 	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/cache"
 	"github.com/jetstack/tally/internal/output"
-	"github.com/jetstack/tally/internal/repositories"
 	"github.com/jetstack/tally/internal/scorecard"
 	scorecardapi "github.com/jetstack/tally/internal/scorecard/api"
 	"github.com/jetstack/tally/internal/tally"
@@ -61,20 +60,9 @@ var rootCmd = &cobra.Command{
 			}
 			defer r.Close()
 		}
-		sbom, err := bom.ParseBOM(r, bom.Format(ro.Format))
+		pkgs, err := bom.PackagesFromBOM(r, bom.Format(ro.Format))
 		if err != nil {
 			return err
-		}
-		pkgs, err := sbom.Packages()
-		if err != nil {
-			return err
-		}
-
-		// Infer repositories from the name of the package and any
-		// information in the BOM
-		repoMappers := []repositories.Mapper{
-			repositories.PackageMapper,
-			repositories.BOMMapper(sbom),
 		}
 
 		var scorecardClients []scorecard.Client
@@ -117,7 +105,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Get results
-		results, err := tally.Results(ctx, os.Stderr, repositories.From(repoMappers...), scorecardClients, pkgs...)
+		results, err := tally.Results(ctx, os.Stderr, scorecardClients, pkgs...)
 		if err != nil {
 			return fmt.Errorf("getting results: %w", err)
 		}

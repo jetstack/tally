@@ -5,19 +5,16 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/jetstack/tally/internal/types"
 )
 
-func TestSyftParseBOM(t *testing.T) {
+func TestParseSyftBOM(t *testing.T) {
 	testCases := map[string]struct {
 		path    string
-		format  Format
 		wantBOM *syftJSON
 		wantErr bool
 	}{
 		"json is parsed successfully": {
-			path:   "testdata/syft.json",
-			format: FormatSyftJSON,
+			path: "testdata/syft.json",
 			wantBOM: &syftJSON{
 				Artifacts: []syftArtifact{
 					{
@@ -31,7 +28,6 @@ func TestSyftParseBOM(t *testing.T) {
 		},
 		"error is returned when parsing invalid json": {
 			path:    "testdata/syft.json.invalid",
-			format:  FormatSyftJSON,
 			wantErr: true,
 		},
 	}
@@ -43,7 +39,7 @@ func TestSyftParseBOM(t *testing.T) {
 			}
 			defer r.Close()
 
-			bom, err := ParseBOM(r, tc.format)
+			gotBOM, err := ParseSyftBOM(r)
 			if err != nil && !tc.wantErr {
 				t.Fatalf("unexpected error parsing BOM: %s", err)
 			}
@@ -55,7 +51,6 @@ func TestSyftParseBOM(t *testing.T) {
 				return
 			}
 
-			gotBOM := bom.(*syftBOM).bom
 			if diff := cmp.Diff(tc.wantBOM, gotBOM); diff != "" {
 				t.Errorf("unexpected BOM:\n%s", diff)
 			}
@@ -63,10 +58,10 @@ func TestSyftParseBOM(t *testing.T) {
 	}
 }
 
-func TestSyftBOMPackages(t *testing.T) {
+func TestPackageFromSyftBOM(t *testing.T) {
 	testCases := map[string]struct {
 		bom          *syftJSON
-		wantPackages []types.Package
+		wantPackages []Package
 	}{
 		"an error should not be produced for an empty BOM": {
 			bom: &syftJSON{},
@@ -92,7 +87,7 @@ func TestSyftBOMPackages(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []types.Package{
+			wantPackages: []Package{
 				{
 					Type: "maven",
 					Name: "org.hdrhistogram/HdrHistogram",
@@ -119,7 +114,7 @@ func TestSyftBOMPackages(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []types.Package{
+			wantPackages: []Package{
 				{
 					Type: "maven",
 					Name: "org.hdrhistogram/HdrHistogram",
@@ -145,10 +140,8 @@ func TestSyftBOMPackages(t *testing.T) {
 	}
 	for n, tc := range testCases {
 		t.Run(n, func(t *testing.T) {
-			bom := &syftBOM{
-				bom: tc.bom,
-			}
-			gotPackages, err := bom.Packages()
+
+			gotPackages, err := PackagesFromSyftBOM(tc.bom)
 			if err != nil {
 				t.Fatalf("unexpected error getting packages from bom: %s", err)
 			}

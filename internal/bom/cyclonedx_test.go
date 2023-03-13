@@ -7,19 +7,18 @@ import (
 
 	"github.com/CycloneDX/cyclonedx-go"
 	"github.com/google/go-cmp/cmp"
-	"github.com/jetstack/tally/internal/types"
 )
 
-func TestCycloneDXParse(t *testing.T) {
+func TestPackagesFromCycloneDXBOM(t *testing.T) {
 	testCases := map[string]struct {
 		path    string
-		format  Format
+		format  cyclonedx.BOMFileFormat
 		wantBOM *cyclonedx.BOM
 		wantErr bool
 	}{
 		"json is parsed successfully": {
 			path:   "testdata/cdx.json",
-			format: FormatCycloneDXJSON,
+			format: cyclonedx.BOMFileFormatJSON,
 			wantBOM: &cyclonedx.BOM{
 				BOMFormat:    "CycloneDX",
 				SpecVersion:  cyclonedx.SpecVersion1_4,
@@ -52,12 +51,12 @@ func TestCycloneDXParse(t *testing.T) {
 		},
 		"error is returned when parsing invalid json": {
 			path:    "testdata/cdx.json.invalid",
-			format:  FormatCycloneDXJSON,
+			format:  cyclonedx.BOMFileFormatJSON,
 			wantErr: true,
 		},
 		"xml": {
 			path:   "testdata/cdx.xml",
-			format: FormatCycloneDXXML,
+			format: cyclonedx.BOMFileFormatXML,
 			wantBOM: &cyclonedx.BOM{
 				SpecVersion:  cyclonedx.SpecVersion1_3,
 				SerialNumber: "urn:uuid:5e0841b1-88e1-4dd8-b706-77457fb3e779",
@@ -94,7 +93,7 @@ func TestCycloneDXParse(t *testing.T) {
 		},
 		"error is returned when parsing invalid xml": {
 			path:    "testdata/cdx.xml.invalid",
-			format:  FormatCycloneDXXML,
+			format:  cyclonedx.BOMFileFormatXML,
 			wantErr: true,
 		},
 	}
@@ -106,7 +105,7 @@ func TestCycloneDXParse(t *testing.T) {
 			}
 			defer r.Close()
 
-			bom, err := ParseBOM(r, tc.format)
+			gotBOM, err := ParseCycloneDXBOM(r, tc.format)
 			if err != nil && !tc.wantErr {
 				t.Fatalf("unexpected error parsing BOM: %s", err)
 			}
@@ -118,7 +117,6 @@ func TestCycloneDXParse(t *testing.T) {
 				return
 			}
 
-			gotBOM := bom.(*cdxBOM).bom
 			if diff := cmp.Diff(tc.wantBOM, gotBOM); diff != "" {
 				t.Errorf("unexpected BOM:\n%s", diff)
 			}
@@ -126,10 +124,10 @@ func TestCycloneDXParse(t *testing.T) {
 	}
 }
 
-func TestCycloneDXBOMPackages(t *testing.T) {
+func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 	testCases := map[string]struct {
 		bom          *cyclonedx.BOM
-		wantPackages []types.Package
+		wantPackages []Package
 	}{
 		"an error should not be produced for an empty BOM": {
 			bom: &cyclonedx.BOM{},
@@ -147,7 +145,7 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []types.Package{
+			wantPackages: []Package{
 				{
 					Type: "golang",
 					Name: "foo/bar",
@@ -169,7 +167,7 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []types.Package{
+			wantPackages: []Package{
 				{
 					Type: "golang",
 					Name: "foo/bar",
@@ -210,7 +208,7 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []types.Package{
+			wantPackages: []Package{
 				{
 					Type: "golang",
 					Name: "foo/bar",
@@ -252,7 +250,7 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []types.Package{
+			wantPackages: []Package{
 				{
 					Type: "maven",
 					Name: "org.hdrhistogram/HdrHistogram",
@@ -279,7 +277,7 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []types.Package{
+			wantPackages: []Package{
 				{
 					Type: "maven",
 					Name: "org.hdrhistogram/HdrHistogram",
@@ -302,29 +300,6 @@ func TestCycloneDXBOMPackages(t *testing.T) {
 				},
 			},
 		},
-	}
-	for n, tc := range testCases {
-		t.Run(n, func(t *testing.T) {
-			bom := &cdxBOM{
-				bom: tc.bom,
-			}
-			gotPackages, err := bom.Packages()
-			if err != nil {
-				t.Fatalf("unexpected error getting packages from bom: %s", err)
-			}
-			if diff := cmp.Diff(tc.wantPackages, gotPackages); diff != "" {
-				t.Errorf("unexpected packages:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestCycloneDXBOMRepositories(t *testing.T) {
-	testCases := map[string]struct {
-		bom       *cyclonedx.BOM
-		pkg       types.Package
-		wantRepos []string
-	}{
 		"repositories can be extracted from metadata.components": {
 			bom: &cyclonedx.BOM{
 				Components: &[]cyclonedx.Component{
@@ -339,12 +314,14 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 					},
 				},
 			},
-			pkg: types.Package{
-				Type: "golang",
-				Name: "foo/bar",
-			},
-			wantRepos: []string{
-				"github.com/bar/foo",
+			wantPackages: []Package{
+				{
+					Type: "golang",
+					Name: "foo/bar",
+					Repositories: []string{
+						"github.com/bar/foo",
+					},
+				},
 			},
 		},
 		"repositories can be extracted from components": {
@@ -361,12 +338,14 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 					},
 				},
 			},
-			pkg: types.Package{
-				Type: "golang",
-				Name: "foo/bar",
-			},
-			wantRepos: []string{
-				"github.com/bar/foo",
+			wantPackages: []Package{
+				{
+					Type: "golang",
+					Name: "foo/bar",
+					Repositories: []string{
+						"github.com/bar/foo",
+					},
+				},
 			},
 		},
 		"repositories can be extracted from nested components": {
@@ -388,12 +367,18 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 					},
 				},
 			},
-			pkg: types.Package{
-				Type: "golang",
-				Name: "foo/bar",
-			},
-			wantRepos: []string{
-				"github.com/bar/foo",
+			wantPackages: []Package{
+				{
+					Type: "golang",
+					Name: "bar/foo",
+				},
+				{
+					Type: "golang",
+					Name: "foo/bar",
+					Repositories: []string{
+						"github.com/bar/foo",
+					},
+				},
 			},
 		},
 		"multiple repositories can be extracted from the same component": {
@@ -414,13 +399,15 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 					},
 				},
 			},
-			pkg: types.Package{
-				Type: "golang",
-				Name: "foo/bar",
-			},
-			wantRepos: []string{
-				"github.com/bar/foo",
-				"github.com/baz/bar",
+			wantPackages: []Package{
+				{
+					Type: "golang",
+					Name: "foo/bar",
+					Repositories: []string{
+						"github.com/bar/foo",
+						"github.com/baz/bar",
+					},
+				},
 			},
 		},
 		"multiple repositories can be extracted from different components": {
@@ -448,13 +435,15 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 					},
 				},
 			},
-			pkg: types.Package{
-				Type: "golang",
-				Name: "foo/bar",
-			},
-			wantRepos: []string{
-				"github.com/bar/foo",
-				"github.com/baz/bar",
+			wantPackages: []Package{
+				{
+					Type: "golang",
+					Name: "foo/bar",
+					Repositories: []string{
+						"github.com/bar/foo",
+						"github.com/baz/bar",
+					},
+				},
 			},
 		},
 		"repositories are deduplicated": {
@@ -482,12 +471,14 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 					},
 				},
 			},
-			pkg: types.Package{
-				Type: "golang",
-				Name: "foo/bar",
-			},
-			wantRepos: []string{
-				"github.com/bar/foo",
+			wantPackages: []Package{
+				{
+					Type: "golang",
+					Name: "foo/bar",
+					Repositories: []string{
+						"github.com/bar/foo",
+					},
+				},
 			},
 		},
 		"repositories are extracted and deduplicated from all supported types": {
@@ -539,27 +530,26 @@ func TestCycloneDXBOMRepositories(t *testing.T) {
 					},
 				},
 			},
-			pkg: types.Package{
-				Type: "golang",
-				Name: "foo/bar",
-			},
-			wantRepos: []string{
-				"github.com/bar/foo",
-				"github.com/foo/baz",
-				"github.com/foo/bar",
+			wantPackages: []Package{
+				{
+					Type: "golang",
+					Name: "foo/bar",
+					Repositories: []string{
+						"github.com/bar/foo",
+						"github.com/foo/baz",
+						"github.com/foo/bar",
+					},
+				},
 			},
 		},
 	}
 	for n, tc := range testCases {
 		t.Run(n, func(t *testing.T) {
-			bom := &cdxBOM{
-				bom: tc.bom,
-			}
-			gotRepos, err := bom.Repositories(tc.pkg)
+			gotPackages, err := PackagesFromCycloneDXBOM(tc.bom)
 			if err != nil {
-				t.Fatalf("unexpected error getting repositories from bom: %s", err)
+				t.Fatalf("unexpected error getting packages from bom: %s", err)
 			}
-			if diff := cmp.Diff(tc.wantRepos, gotRepos); diff != "" {
+			if diff := cmp.Diff(tc.wantPackages, gotPackages); diff != "" {
 				t.Errorf("unexpected packages:\n%s", diff)
 			}
 		})

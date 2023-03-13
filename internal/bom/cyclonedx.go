@@ -6,29 +6,23 @@ import (
 
 	"github.com/CycloneDX/cyclonedx-go"
 	github_url "github.com/jetstack/tally/internal/github-url"
-	"github.com/jetstack/tally/internal/types"
 )
 
-type cdxBOM struct {
-	bom *cyclonedx.BOM
-}
-
-func parseCycloneDX(r io.Reader, format cyclonedx.BOMFileFormat) (BOM, error) {
+// ParseCycloneDXBOM parses a cyclonedx BOM in the specified format
+func ParseCycloneDXBOM(r io.Reader, format cyclonedx.BOMFileFormat) (*cyclonedx.BOM, error) {
 	bom := &cyclonedx.BOM{}
 	if err := cyclonedx.NewBOMDecoder(r, format).Decode(bom); err != nil {
 		return nil, fmt.Errorf("decoding cyclonedx BOM: %w", err)
 	}
 
-	return &cdxBOM{
-		bom: bom,
-	}, nil
+	return bom, nil
 }
 
-// Packages returns all the supported packages in the BOM
-func (b *cdxBOM) Packages() ([]types.Package, error) {
-	var pkgs []types.Package
+// PackagesFromCycloneDXBOM extracts packages from a cyclonedx BOM
+func PackagesFromCycloneDXBOM(bom *cyclonedx.BOM) ([]Package, error) {
+	var pkgs []Package
 	if err := foreachComponentIn(
-		b.bom,
+		bom,
 		func(component cyclonedx.Component) error {
 			pkg, err := packageFromCycloneDXComponent(component)
 			if err != nil {
@@ -37,9 +31,23 @@ func (b *cdxBOM) Packages() ([]types.Package, error) {
 			if pkg == nil {
 				return nil
 			}
-			if containsPackage(pkgs, *pkg) {
+			for i, p := range pkgs {
+				if p.Name != pkg.Name {
+					continue
+				}
+				if p.Type != pkg.Type {
+					continue
+				}
+				for _, repo := range pkg.Repositories {
+					if contains(p.Repositories, repo) {
+						continue
+					}
+					pkgs[i].Repositories = append(pkgs[i].Repositories, repo)
+				}
+
 				return nil
 			}
+
 			pkgs = append(pkgs, *pkg)
 
 			return nil
@@ -52,46 +60,31 @@ func (b *cdxBOM) Packages() ([]types.Package, error) {
 	return pkgs, nil
 }
 
-// Repositories returns any repositories specified in the BOM for the provided
-// package
-func (b *cdxBOM) Repositories(pkg types.Package) ([]string, error) {
-	var repos []string
-	if err := foreachComponentIn(
-		b.bom,
-		func(component cyclonedx.Component) error {
-			p, err := packageFromCycloneDXComponent(component)
+func packageFromCycloneDXComponent(component cyclonedx.Component) (*Package, error) {
+	if component.PackageURL == "" {
+		return nil, nil
+	}
+	pkg, err := packageFromPurl(component.PackageURL)
+	if err != nil {
+		return nil, err
+	}
+	if component.ExternalReferences == nil {
+		return pkg, nil
+	}
+	for _, ref := range *component.ExternalReferences {
+		switch ref.Type {
+		case cyclonedx.ERTypeVCS, cyclonedx.ERTypeDistribution, cyclonedx.ERTypeWebsite:
+			repo, err := github_url.ToRepository(ref.URL)
 			if err != nil {
-				return err
+				continue
 			}
-			if p == nil {
-				return nil
+			if !contains(pkg.Repositories, repo) {
+				pkg.Repositories = append(pkg.Repositories, repo)
 			}
-			if !p.Equals(pkg) {
-				return nil
-			}
-			if component.ExternalReferences != nil {
-				for _, ref := range *component.ExternalReferences {
-					switch ref.Type {
-					case cyclonedx.ERTypeVCS, cyclonedx.ERTypeDistribution, cyclonedx.ERTypeWebsite:
-						repo, err := github_url.ToRepository(ref.URL)
-						if err != nil {
-							continue
-						}
-						if !contains(repos, repo) {
-							repos = append(repos, repo)
-						}
-					}
-				}
-			}
-
-			return nil
-
-		},
-	); err != nil {
-		return nil, fmt.Errorf("finding repositories in BOM: %w", err)
+		}
 	}
 
-	return repos, nil
+	return pkg, nil
 }
 
 func foreachComponentIn(bom *cyclonedx.BOM, fn func(component cyclonedx.Component) error) error {
@@ -121,31 +114,9 @@ func walkCycloneDXComponents(components []cyclonedx.Component, fn func(cyclonedx
 	return nil
 }
 
-func packageFromCycloneDXComponent(component cyclonedx.Component) (*types.Package, error) {
-	if component.PackageURL == "" {
-		return nil, nil
-	}
-	pkg, err := packageFromPurl(component.PackageURL)
-	if err != nil {
-		return nil, err
-	}
-
-	return pkg, nil
-}
-
 func contains(vals []string, val string) bool {
 	for _, v := range vals {
 		if v == val {
-			return true
-		}
-	}
-
-	return false
-}
-
-func containsPackage(pkgs []types.Package, pkg types.Package) bool {
-	for _, p := range pkgs {
-		if p.Equals(pkg) {
 			return true
 		}
 	}
