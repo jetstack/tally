@@ -4,24 +4,34 @@ import (
 	"os"
 	"testing"
 
+	"github.com/anchore/syft/syft/formats/syftjson/model"
+	"github.com/anchore/syft/syft/pkg"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestParseSyftBOM(t *testing.T) {
 	testCases := map[string]struct {
 		path    string
-		wantBOM *syftJSON
+		wantBOM *model.Document
 		wantErr bool
 	}{
 		"json is parsed successfully": {
 			path: "testdata/syft.json",
-			wantBOM: &syftJSON{
-				Artifacts: []syftArtifact{
+			wantBOM: &model.Document{
+				Artifacts: []model.Package{
 					{
-						Purl: "pkg:golang/foo/bar@v0.2.5",
+						PackageBasicData: model.PackageBasicData{
+							ID:   "0",
+							Name: "foo",
+							PURL: "pkg:golang/foo/bar@v0.2.5",
+						},
 					},
 					{
-						Purl: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9",
+						PackageBasicData: model.PackageBasicData{
+							ID:   "1",
+							Name: "HdrHistogram",
+							PURL: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9",
+						},
 					},
 				},
 			},
@@ -60,30 +70,43 @@ func TestParseSyftBOM(t *testing.T) {
 
 func TestPackageFromSyftBOM(t *testing.T) {
 	testCases := map[string]struct {
-		bom          *syftJSON
+		bom          *model.Document
 		wantPackages []Package
 	}{
 		"an error should not be produced for an empty BOM": {
-			bom: &syftJSON{},
+			bom: &model.Document{},
 		},
-		"components without a Purl should be ignored": {
-			bom: &syftJSON{
-				Artifacts: []syftArtifact{
-					{},
+		"components without a PURL should be ignored": {
+			bom: &model.Document{
+				Artifacts: []model.Package{
+					{
+						PackageBasicData: model.PackageBasicData{
+							Name: "foo",
+						},
+					},
 				},
 			},
 		},
 		"duplicate packages should be ignored": {
-			bom: &syftJSON{
-				Artifacts: []syftArtifact{
+			bom: &model.Document{
+				Artifacts: []model.Package{
 					{
-						Purl: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.8",
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.8",
+						},
 					},
 					{
-						Purl: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9",
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9",
+						},
 					},
 					{
-						Purl: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9",
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9",
+						},
 					},
 				},
 			},
@@ -94,23 +117,38 @@ func TestPackageFromSyftBOM(t *testing.T) {
 				},
 			},
 		},
-		"all supported types should be discovered": {
-			bom: &syftJSON{
-				Artifacts: []syftArtifact{
+		"multiple types should be discovered": {
+			bom: &model.Document{
+				Artifacts: []model.Package{
 					{
-						Purl: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9",
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9",
+						},
 					},
 					{
-						Purl: "pkg:golang/sigs.k8s.io/release-utils@v0.7.3",
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:golang/sigs.k8s.io/release-utils@v0.7.3",
+						},
 					},
 					{
-						Purl: "pkg:npm/zwitch@2.0.2",
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:npm/zwitch@2.0.2",
+						},
 					},
 					{
-						Purl: "pkg:cargo/getrandom@0.2.7",
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:cargo/getrandom@0.2.7",
+						},
 					},
 					{
-						Purl: "pkg:pypi/zope.interface@5.4.0",
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:pypi/zope.interface@5.4.0",
+						},
 					},
 				},
 			},
@@ -134,6 +172,158 @@ func TestPackageFromSyftBOM(t *testing.T) {
 				{
 					Type: "pypi",
 					Name: "zope.interface",
+				},
+			},
+		},
+		"should discover repositories from supported package types": {
+			bom: &model.Document{
+				Artifacts: []model.Package{
+					{
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:pub/foobar@3.3.0?hosted_url=pub.hosted.org",
+						},
+						PackageCustomData: model.PackageCustomData{
+							MetadataType: pkg.DartPubMetadataType,
+							Metadata: pkg.DartPubMetadata{
+								VcsURL: "github.com/foo/bar",
+							},
+						},
+					},
+					{
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:gem/foobar@2.1.4",
+						},
+						PackageCustomData: model.PackageCustomData{
+							MetadataType: pkg.GemMetadataType,
+							Metadata: pkg.GemMetadata{
+								Homepage: "https://github.com/foo/bar",
+							},
+						},
+					},
+					{
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:composer/foo/bar@1.0.2",
+						},
+						PackageCustomData: model.PackageCustomData{
+							MetadataType: pkg.PhpComposerJSONMetadataType,
+							Metadata: pkg.PhpComposerJSONMetadata{
+								Source: pkg.PhpComposerExternalReference{
+									Type:      "git",
+									URL:       "https://github.com/foo/bar.git",
+									Reference: "6d9a552f0206a1db7feb442824540aa6c55e5b27",
+								},
+							},
+						},
+					},
+					{
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:npm/foobar@6.14.6",
+						},
+						PackageCustomData: model.PackageCustomData{
+							MetadataType: pkg.NpmPackageJSONMetadataType,
+							Metadata: pkg.NpmPackageJSONMetadata{
+								Homepage: "https://github.com/foo/bar",
+							},
+						},
+					},
+					{
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:npm/foobar1@6.14.6",
+						},
+						PackageCustomData: model.PackageCustomData{
+							MetadataType: pkg.NpmPackageJSONMetadataType,
+							Metadata: pkg.NpmPackageJSONMetadata{
+								Homepage: "https://docs.npmjs.com/",
+								URL:      "https://github.com/foo/bar1",
+							},
+						},
+					},
+					{
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:npm/barfoo@6.14.6",
+						},
+						PackageCustomData: model.PackageCustomData{
+							MetadataType: pkg.NpmPackageJSONMetadataType,
+							Metadata: pkg.NpmPackageJSONMetadata{
+								Homepage: "https://github.com/bar/foo",
+								URL:      "https://github.com/foo/bar",
+							},
+						},
+					},
+					{
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:pypi/foobar@v0.1.0",
+						},
+						PackageCustomData: model.PackageCustomData{
+							MetadataType: pkg.PythonPackageMetadataType,
+							Metadata: pkg.PythonPackageMetadata{
+								DirectURLOrigin: &pkg.PythonDirectURLOriginInfo{
+									VCS:      "git",
+									URL:      "https://github.com/foo/bar.git",
+									CommitID: "6d9a552f0206a1db7feb442824540aa6c55e5b27",
+								},
+							},
+						},
+					},
+				},
+			},
+			wantPackages: []Package{
+				{
+					Type: "pub",
+					Name: "foobar",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+				{
+					Type: "gem",
+					Name: "foobar",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+				{
+					Type: "composer",
+					Name: "foo/bar",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+				{
+					Type: "npm",
+					Name: "foobar",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+				{
+					Type: "npm",
+					Name: "foobar1",
+					Repositories: []string{
+						"github.com/foo/bar1",
+					},
+				},
+				{
+					Type: "npm",
+					Name: "barfoo",
+					Repositories: []string{
+						"github.com/bar/foo",
+						"github.com/foo/bar",
+					},
+				},
+				{
+					Type: "pypi",
+					Name: "foobar",
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
 				},
 			},
 		},

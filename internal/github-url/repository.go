@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ghRegex       = regexp.MustCompile(`(?:https|git)(?:://|@)github\.com[/:]([^/:#]+)/([^/#]*).*`)
+	ghRegex       = regexp.MustCompile(`(?:(?:https|git)(?:://|@))?github\.com[/:]([^/:#]+)/([^/#]*).*`)
 	ghSuffixRegex = regexp.MustCompile(`(\.git/?)?(\.git|\?.*|#.*)?$`)
 )
 

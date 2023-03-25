@@ -9,6 +9,10 @@ func TestToRepository(t *testing.T) {
 		wantErr  bool
 	}{
 		{
+			url:      "github.com/foo/bar",
+			wantRepo: "github.com/foo/bar",
+		},
+		{
 			url:      "https://github.com/foo/bar",
 			wantRepo: "github.com/foo/bar",
 		},
