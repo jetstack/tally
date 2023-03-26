@@ -60,52 +60,52 @@ func packageRepositoriesFromSyftPackage(pkg model.Package) (*types.PackageReposi
 	return pkgRepo, nil
 }
 
-func repositoriesFromSyftPackage(pkg model.Package) []string {
-	var repos []string
+func repositoriesFromSyftPackage(pkg model.Package) []types.Repository {
+	var repos []types.Repository
 	switch pkg.MetadataType {
 	case syft.DartPubMetadataType:
 		metadata, ok := pkg.Metadata.(syft.DartPubMetadata)
 		if ok {
-			repo, err := github_url.ToRepository(metadata.VcsURL)
-			if err == nil {
-				repos = append(repos, repo)
+			repo := github_url.ToRepository(metadata.VcsURL)
+			if repo != nil {
+				repos = append(repos, *repo)
 			}
 		}
 	case syft.GemMetadataType:
 		metadata, ok := pkg.Metadata.(syft.GemMetadata)
 		if ok {
-			repo, err := github_url.ToRepository(metadata.Homepage)
-			if err == nil {
-				repos = append(repos, repo)
+			repo := github_url.ToRepository(metadata.Homepage)
+			if repo != nil {
+				repos = append(repos, *repo)
 			}
 		}
 	case syft.PhpComposerJSONMetadataType:
 		metadata, ok := pkg.Metadata.(syft.PhpComposerJSONMetadata)
 		if ok {
-			repo, err := github_url.ToRepository(metadata.Source.URL)
-			if err == nil {
-				repos = append(repos, repo)
+			repo := github_url.ToRepository(metadata.Source.URL)
+			if repo != nil {
+				repos = append(repos, *repo)
 			}
 		}
 	case syft.NpmPackageJSONMetadataType:
 		metadata, ok := pkg.Metadata.(syft.NpmPackageJSONMetadata)
 		if ok {
-			repo, err := github_url.ToRepository(metadata.Homepage)
-			if err == nil {
-				repos = append(repos, repo)
+			repo := github_url.ToRepository(metadata.Homepage)
+			if repo != nil {
+				repos = append(repos, *repo)
 			}
-			repo, err = github_url.ToRepository(metadata.URL)
-			if err == nil {
-				repos = append(repos, repo)
+			repo = github_url.ToRepository(metadata.URL)
+			if repo != nil {
+				repos = append(repos, *repo)
 			}
 		}
 	case syft.PythonPackageMetadataType:
 		metadata, ok := pkg.Metadata.(syft.PythonPackageMetadata)
 		if ok {
 			if metadata.DirectURLOrigin != nil {
-				repo, err := github_url.ToRepository(metadata.DirectURLOrigin.URL)
-				if err == nil {
-					repos = append(repos, repo)
+				repo := github_url.ToRepository(metadata.DirectURLOrigin.URL)
+				if repo != nil {
+					repos = append(repos, *repo)
 				}
 			}
 		}

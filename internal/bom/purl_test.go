@@ -39,8 +39,10 @@ func TestPackageRepositoriesFromPurl(t *testing.T) {
 					Type: "golang",
 					Name: "github.com/foo/bar",
 				},
-				Repositories: []string{
-					"github.com/foo/bar",
+				Repositories: []types.Repository{
+					{
+						Name: "github.com/foo/bar",
+					},
 				},
 			},
 		},
@@ -78,8 +80,10 @@ func TestPackageRepositoriesFromPurl(t *testing.T) {
 					Type: "pypi",
 					Name: "foo.bar",
 				},
-				Repositories: []string{
-					"github.com/foo/bar",
+				Repositories: []types.Repository{
+					{
+						Name: "github.com/foo/bar",
+					},
 				},
 			},
 		},

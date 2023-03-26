@@ -59,11 +59,11 @@ func packageRepositoriesFromCycloneDXComponent(component cyclonedx.Component) (*
 	for _, ref := range *component.ExternalReferences {
 		switch ref.Type {
 		case cyclonedx.ERTypeVCS, cyclonedx.ERTypeDistribution, cyclonedx.ERTypeWebsite:
-			repo, err := github_url.ToRepository(ref.URL)
-			if err != nil {
+			repo := github_url.ToRepository(ref.URL)
+			if repo == nil {
 				continue
 			}
-			pkgRepo.AddRepositories(repo)
+			pkgRepo.AddRepositories(*repo)
 		}
 	}
 

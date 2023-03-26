@@ -23,9 +23,9 @@ func packageRepositoriesFromPurl(purl string) (*types.PackageRepositories, error
 		pkgRepo.Name = p.Namespace + "/" + p.Name
 	}
 
-	repo, err := github_url.ToRepository(p.Qualifiers.Map()["vcs_url"])
-	if err == nil {
-		pkgRepo.AddRepositories(repo)
+	repo := github_url.ToRepository(p.Qualifiers.Map()["vcs_url"])
+	if repo != nil {
+		pkgRepo.AddRepositories(*repo)
 	}
 
 	switch pkgRepo.Type {
@@ -38,7 +38,7 @@ func packageRepositoriesFromPurl(purl string) (*types.PackageRepositories, error
 			return pkgRepo, nil
 		}
 
-		pkgRepo.AddRepositories(strings.Join([]string{parts[0], parts[1], parts[2]}, "/"))
+		pkgRepo.AddRepositories(types.Repository{Name: strings.Join([]string{parts[0], parts[1], parts[2]}, "/")})
 	}
 
 	return pkgRepo, nil

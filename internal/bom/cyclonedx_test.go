@@ -349,8 +349,10 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 						Type: "golang",
 						Name: "foo/bar",
 					},
-					Repositories: []string{
-						"github.com/bar/foo",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/bar/foo",
+						},
 					},
 				},
 			},
@@ -375,8 +377,10 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 						Type: "golang",
 						Name: "foo/bar",
 					},
-					Repositories: []string{
-						"github.com/bar/foo",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/bar/foo",
+						},
 					},
 				},
 			},
@@ -412,8 +416,10 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 						Type: "golang",
 						Name: "foo/bar",
 					},
-					Repositories: []string{
-						"github.com/bar/foo",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/bar/foo",
+						},
 					},
 				},
 			},
@@ -442,9 +448,14 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 						Type: "golang",
 						Name: "foo/bar",
 					},
-					Repositories: []string{
-						"github.com/bar/foo",
-						"github.com/baz/bar",
+					Repositories: []types.Repository{
+						{
+
+							Name: "github.com/bar/foo",
+						},
+						{
+							Name: "github.com/baz/bar",
+						},
 					},
 				},
 			},
@@ -480,9 +491,13 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 						Type: "golang",
 						Name: "foo/bar",
 					},
-					Repositories: []string{
-						"github.com/bar/foo",
-						"github.com/baz/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/bar/foo",
+						},
+						{
+							Name: "github.com/baz/bar",
+						},
 					},
 				},
 			},
@@ -518,8 +533,10 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 						Type: "golang",
 						Name: "foo/bar",
 					},
-					Repositories: []string{
-						"github.com/bar/foo",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/bar/foo",
+						},
 					},
 				},
 			},
@@ -579,10 +596,16 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 						Type: "golang",
 						Name: "foo/bar",
 					},
-					Repositories: []string{
-						"github.com/bar/foo",
-						"github.com/foo/baz",
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/bar/foo",
+						},
+						{
+							Name: "github.com/foo/baz",
+						},
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 			},
@@ -601,8 +624,10 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 						Type: "pypi",
 						Name: "foo.bar",
 					},
-					Repositories: []string{
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 			},

@@ -30,19 +30,21 @@ func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRe
 		// results
 		repos := pkgRepo.Repositories
 		if len(repos) == 0 {
-			repos = []string{""}
+			repos = []types.Repository{types.Repository{Name: ""}}
 		}
 		for _, repo := range repos {
-			repoPkgs[repo] = append(repoPkgs[repo], pkgRepo.Package)
+			repoPkgs[repo.Name] = append(repoPkgs[repo.Name], pkgRepo.Package)
 		}
 	}
 
 	// Map into results
 	var results []types.Result
-	for repo, pkgs := range repoPkgs {
+	for repoName, pkgs := range repoPkgs {
 		results = append(results, types.Result{
-			Repository: repo,
-			Packages:   pkgs,
+			Repository: types.Repository{
+				Name: repoName,
+			},
+			Packages: pkgs,
 		})
 	}
 
@@ -56,7 +58,7 @@ func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRe
 		g.SetLimit(runtime.NumCPU())
 		mux := sync.RWMutex{}
 		for i, result := range results {
-			if result.ScorecardResult != nil || result.Repository == "" {
+			if result.ScorecardResult != nil || result.Repository.Name == "" {
 				continue
 			}
 			i, result := i, result
@@ -66,15 +68,15 @@ func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRe
 				// depending on the type of client
 				switch client.Name() {
 				case scorecard.ScorecardClientName:
-					bar.Set("message", fmt.Sprintf("Generating score for %q", result.Repository))
+					bar.Set("message", fmt.Sprintf("Generating score for %q", result.Repository.Name))
 				default:
-					bar.Set("message", fmt.Sprintf("Finding score for %q", result.Repository))
+					bar.Set("message", fmt.Sprintf("Finding score for %q", result.Repository.Name))
 				}
 				mux.Unlock()
 
-				scorecardResult, err := client.GetResult(ctx, result.Repository)
+				scorecardResult, err := client.GetResult(ctx, result.Repository.Name)
 				if err != nil && !errors.Is(err, scorecard.ErrNotFound) {
-					return fmt.Errorf("getting score for %s: %w", result.Repository, err)
+					return fmt.Errorf("getting score for %s: %w", result.Repository.Name, err)
 				}
 				if scorecardResult == nil {
 					return nil

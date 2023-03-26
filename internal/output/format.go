@@ -51,18 +51,18 @@ func writeShort(w io.Writer, results []types.Result) error {
 
 	printed := map[string]struct{}{}
 	for _, result := range results {
-		if result.Repository == "" {
+		if result.Repository.Name == "" {
 			continue
 		}
-		if _, ok := printed[result.Repository]; ok {
+		if _, ok := printed[result.Repository.Name]; ok {
 			continue
 		}
 		if result.ScorecardResult != nil {
-			fmt.Fprintf(tw, "%s\t%.1f\n", result.Repository, result.ScorecardResult.Score)
+			fmt.Fprintf(tw, "%s\t%.1f\n", result.Repository.Name, result.ScorecardResult.Score)
 		} else {
-			fmt.Fprintf(tw, "%s\t%s\n", result.Repository, " ")
+			fmt.Fprintf(tw, "%s\t%s\n", result.Repository.Name, " ")
 		}
-		printed[result.Repository] = struct{}{}
+		printed[result.Repository.Name] = struct{}{}
 	}
 
 	return nil
@@ -76,9 +76,9 @@ func writeWide(w io.Writer, results []types.Result) error {
 	for _, result := range results {
 		for _, pkg := range result.Packages {
 			if result.ScorecardResult != nil {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.Type, pkg.Name, result.Repository, result.ScorecardResult.Score)
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.Type, pkg.Name, result.Repository.Name, result.ScorecardResult.Score)
 			} else {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", pkg.Type, pkg.Name, result.Repository, " ")
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", pkg.Type, pkg.Name, result.Repository.Name, " ")
 			}
 		}
 	}

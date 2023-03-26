@@ -1,9 +1,10 @@
 package github_url
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/jetstack/tally/internal/types"
 )
 
 var (
@@ -13,10 +14,13 @@ var (
 
 // ToRepository parses a github url from a number of different formats into our
 // expected repository format: github.com/<org>/<repo>.
-func ToRepository(u string) (string, error) {
+func ToRepository(u string) *types.Repository {
 	matches := ghRegex.FindStringSubmatch(ghSuffixRegex.ReplaceAllString(u, ""))
 	if len(matches) < 3 {
-		return "", fmt.Errorf("couldn't parse url")
+		return nil
 	}
-	return strings.Join([]string{"github.com", matches[1], matches[2]}, "/"), nil
+
+	return &types.Repository{
+		Name: strings.Join([]string{"github.com", matches[1], matches[2]}, "/"),
+	}
 }

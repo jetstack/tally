@@ -60,9 +60,9 @@ func (o *output) WriteResults(w io.Writer, results []types.Result) error {
 			js = results[j].ScorecardResult.Score
 		}
 
-		// If the scores are equal, then sort by repository.
+		// If the scores are equal, then sort by repository.name
 		if is == js {
-			return results[i].Repository > results[j].Repository
+			return results[i].Repository.Name > results[j].Repository.Name
 		}
 
 		return is > js

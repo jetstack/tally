@@ -303,8 +303,10 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 						Type: "pub",
 						Name: "foobar",
 					},
-					Repositories: []string{
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 				{
@@ -312,8 +314,10 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 						Type: "gem",
 						Name: "foobar",
 					},
-					Repositories: []string{
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 				{
@@ -321,8 +325,10 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 						Type: "composer",
 						Name: "foo/bar",
 					},
-					Repositories: []string{
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 				{
@@ -330,8 +336,10 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 						Type: "npm",
 						Name: "foobar",
 					},
-					Repositories: []string{
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 				{
@@ -339,8 +347,10 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 						Type: "npm",
 						Name: "foobar1",
 					},
-					Repositories: []string{
-						"github.com/foo/bar1",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/foo/bar1",
+						},
 					},
 				},
 				{
@@ -348,9 +358,13 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 						Type: "npm",
 						Name: "barfoo",
 					},
-					Repositories: []string{
-						"github.com/bar/foo",
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/bar/foo",
+						},
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 				{
@@ -358,8 +372,10 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 						Type: "pypi",
 						Name: "foobar",
 					},
-					Repositories: []string{
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 				{
@@ -367,8 +383,10 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 						Type: "pypi",
 						Name: "foo.bar",
 					},
-					Repositories: []string{
-						"github.com/foo/bar",
+					Repositories: []types.Repository{
+						{
+							Name: "github.com/foo/bar",
+						},
 					},
 				},
 			},

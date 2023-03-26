@@ -1,13 +1,16 @@
 package types
 
+// PackageRepositories represents the repositories associated with a package
 type PackageRepositories struct {
 	Package
-	Repositories []string `json:"repositories"`
+	Repositories []Repository `json:"repositories"`
 }
 
-func (pkg *PackageRepositories) AddRepositories(repos ...string) {
+// AddRepositories adds repositories. It will ignore any repositories that are
+// already associated with the package.
+func (pkg *PackageRepositories) AddRepositories(repos ...Repository) {
 	for _, repo := range repos {
-		if contains(pkg.Repositories, repo) {
+		if containsRepo(pkg.Repositories, repo) {
 			continue
 		}
 
@@ -15,9 +18,9 @@ func (pkg *PackageRepositories) AddRepositories(repos ...string) {
 	}
 }
 
-func contains(vals []string, val string) bool {
-	for _, v := range vals {
-		if v == val {
+func containsRepo(repos []Repository, repo Repository) bool {
+	for _, r := range repos {
+		if r.Name == repo.Name {
 			return true
 		}
 	}
