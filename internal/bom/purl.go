@@ -3,6 +3,7 @@ package bom
 import (
 	"strings"
 
+	github_url "github.com/jetstack/tally/internal/github-url"
 	"github.com/jetstack/tally/internal/types"
 	"github.com/package-url/packageurl-go"
 )
@@ -20,6 +21,11 @@ func packageRepositoriesFromPurl(purl string) (*types.PackageRepositories, error
 	}
 	if p.Namespace != "" {
 		pkgRepo.Name = p.Namespace + "/" + p.Name
+	}
+
+	repo, err := github_url.ToRepository(p.Qualifiers.Map()["vcs_url"])
+	if err == nil {
+		pkgRepo.AddRepositories(repo)
 	}
 
 	switch pkgRepo.Type {

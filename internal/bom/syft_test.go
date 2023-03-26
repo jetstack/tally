@@ -285,6 +285,16 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 							},
 						},
 					},
+					{
+
+						PackageBasicData: model.PackageBasicData{
+							PURL: "pkg:pypi/foo.bar@5.4.0?vcs_url=git+git+ssh://git@github.com:foo/bar.git#v5.4.0",
+						},
+						PackageCustomData: model.PackageCustomData{
+							MetadataType: pkg.PythonPackageMetadataType,
+							Metadata:     pkg.PythonPackageMetadata{},
+						},
+					},
 				},
 			},
 			wantPackages: []*types.PackageRepositories{
@@ -347,6 +357,15 @@ func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 					Package: types.Package{
 						Type: "pypi",
 						Name: "foobar",
+					},
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+				{
+					Package: types.Package{
+						Type: "pypi",
+						Name: "foo.bar",
 					},
 					Repositories: []string{
 						"github.com/foo/bar",

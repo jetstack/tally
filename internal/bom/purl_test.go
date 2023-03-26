@@ -71,6 +71,18 @@ func TestPackageRepositoriesFromPurl(t *testing.T) {
 				},
 			},
 		},
+		{
+			purl: "pkg:pypi/foo.bar@5.4.0?vcs_url=git+git+ssh://git@github.com:foo/bar.git#v5.4.0",
+			wantPackageRepositories: &types.PackageRepositories{
+				Package: types.Package{
+					Type: "pypi",
+					Name: "foo.bar",
+				},
+				Repositories: []string{
+					"github.com/foo/bar",
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		gotPkg, err := packageRepositoriesFromPurl(tc.purl)

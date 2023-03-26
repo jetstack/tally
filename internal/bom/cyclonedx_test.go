@@ -587,6 +587,26 @@ func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 				},
 			},
 		},
+		"repository is extracted from the package url": {
+			bom: &cyclonedx.BOM{
+				Components: &[]cyclonedx.Component{
+					{
+						PackageURL: "pkg:pypi/foo.bar@5.4.0?vcs_url=git+git+ssh://git@github.com:foo/bar.git#v5.4.0",
+					},
+				},
+			},
+			wantPackages: []*types.PackageRepositories{
+				{
+					Package: types.Package{
+						Type: "pypi",
+						Name: "foo.bar",
+					},
+					Repositories: []string{
+						"github.com/foo/bar",
+					},
+				},
+			},
+		},
 	}
 	for n, tc := range testCases {
 		t.Run(n, func(t *testing.T) {
