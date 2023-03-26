@@ -60,7 +60,7 @@ var rootCmd = &cobra.Command{
 			}
 			defer r.Close()
 		}
-		pkgs, err := bom.PackagesFromBOM(r, bom.Format(ro.Format))
+		pkgRepos, err := bom.PackageRepositoriesFromBOM(r, bom.Format(ro.Format))
 		if err != nil {
 			return err
 		}
@@ -105,7 +105,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Get results
-		results, err := tally.Results(ctx, os.Stderr, scorecardClients, pkgs...)
+		results, err := tally.Results(ctx, os.Stderr, scorecardClients, pkgRepos...)
 		if err != nil {
 			return fmt.Errorf("getting results: %w", err)
 		}

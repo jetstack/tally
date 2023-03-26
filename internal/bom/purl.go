@@ -3,34 +3,37 @@ package bom
 import (
 	"strings"
 
+	"github.com/jetstack/tally/internal/types"
 	"github.com/package-url/packageurl-go"
 )
 
-func packageFromPurl(purl string) (*Package, error) {
+func packageRepositoriesFromPurl(purl string) (*types.PackageRepositories, error) {
 	p, err := packageurl.FromString(purl)
 	if err != nil {
 		return nil, err
 	}
-	pkg := &Package{
-		Type: p.Type,
-		Name: p.Name,
+	pkgRepo := &types.PackageRepositories{
+		Package: types.Package{
+			Type: p.Type,
+			Name: p.Name,
+		},
 	}
 	if p.Namespace != "" {
-		pkg.Name = p.Namespace + "/" + p.Name
+		pkgRepo.Name = p.Namespace + "/" + p.Name
 	}
 
-	switch pkg.Type {
+	switch pkgRepo.Type {
 	case "golang":
-		if !strings.HasPrefix(pkg.Name, "github.com/") {
-			return pkg, nil
+		if !strings.HasPrefix(pkgRepo.Name, "github.com/") {
+			return pkgRepo, nil
 		}
-		parts := strings.Split(pkg.Name, "/")
+		parts := strings.Split(pkgRepo.Name, "/")
 		if len(parts) < 3 {
-			return pkg, nil
+			return pkgRepo, nil
 		}
 
-		pkg.Repositories = append(pkg.Repositories, strings.Join([]string{parts[0], parts[1], parts[2]}, "/"))
+		pkgRepo.AddRepositories(strings.Join([]string{parts[0], parts[1], parts[2]}, "/"))
 	}
 
-	return pkg, nil
+	return pkgRepo, nil
 }

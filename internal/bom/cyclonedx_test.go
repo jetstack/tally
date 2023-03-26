@@ -7,6 +7,7 @@ import (
 
 	"github.com/CycloneDX/cyclonedx-go"
 	"github.com/google/go-cmp/cmp"
+	"github.com/jetstack/tally/internal/types"
 )
 
 func TestPackagesFromCycloneDXBOM(t *testing.T) {
@@ -124,10 +125,10 @@ func TestPackagesFromCycloneDXBOM(t *testing.T) {
 	}
 }
 
-func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
+func TestPackageRepositoriesFromCycloneDXBOM(t *testing.T) {
 	testCases := map[string]struct {
 		bom          *cyclonedx.BOM
-		wantPackages []Package
+		wantPackages []*types.PackageRepositories
 	}{
 		"an error should not be produced for an empty BOM": {
 			bom: &cyclonedx.BOM{},
@@ -145,10 +146,12 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 				},
 			},
 		},
@@ -167,18 +170,24 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 				},
 				{
-					Type: "maven",
-					Name: "org.hdrhistogram/HdrHistogram",
+					Package: types.Package{
+						Type: "maven",
+						Name: "org.hdrhistogram/HdrHistogram",
+					},
 				},
 				{
-					Type: "deb",
-					Name: "debian/adduser",
+					Package: types.Package{
+						Type: "deb",
+						Name: "debian/adduser",
+					},
 				},
 			},
 		},
@@ -208,22 +217,30 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 				},
 				{
-					Type: "golang",
-					Name: "sigs.k8s.io/release-utils",
+					Package: types.Package{
+						Type: "golang",
+						Name: "sigs.k8s.io/release-utils",
+					},
 				},
 				{
-					Type: "maven",
-					Name: "org.hdrhistogram/HdrHistogram",
+					Package: types.Package{
+						Type: "maven",
+						Name: "org.hdrhistogram/HdrHistogram",
+					},
 				},
 				{
-					Type: "maven",
-					Name: "com.github.package-url/packageurl-java",
+					Package: types.Package{
+						Type: "maven",
+						Name: "com.github.package-url/packageurl-java",
+					},
 				},
 			},
 		},
@@ -250,10 +267,12 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "maven",
-					Name: "org.hdrhistogram/HdrHistogram",
+					Package: types.Package{
+						Type: "maven",
+						Name: "org.hdrhistogram/HdrHistogram",
+					},
 				},
 			},
 		},
@@ -277,26 +296,36 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "maven",
-					Name: "org.hdrhistogram/HdrHistogram",
+					Package: types.Package{
+						Type: "maven",
+						Name: "org.hdrhistogram/HdrHistogram",
+					},
 				},
 				{
-					Type: "golang",
-					Name: "sigs.k8s.io/release-utils",
+					Package: types.Package{
+						Type: "golang",
+						Name: "sigs.k8s.io/release-utils",
+					},
 				},
 				{
-					Type: "npm",
-					Name: "zwitch",
+					Package: types.Package{
+						Type: "npm",
+						Name: "zwitch",
+					},
 				},
 				{
-					Type: "cargo",
-					Name: "getrandom",
+					Package: types.Package{
+						Type: "cargo",
+						Name: "getrandom",
+					},
 				},
 				{
-					Type: "pypi",
-					Name: "zope.interface",
+					Package: types.Package{
+						Type: "pypi",
+						Name: "zope.interface",
+					},
 				},
 			},
 		},
@@ -314,10 +343,12 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 					Repositories: []string{
 						"github.com/bar/foo",
 					},
@@ -338,10 +369,12 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 					Repositories: []string{
 						"github.com/bar/foo",
 					},
@@ -367,14 +400,18 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "bar/foo",
+					Package: types.Package{
+						Type: "golang",
+						Name: "bar/foo",
+					},
 				},
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 					Repositories: []string{
 						"github.com/bar/foo",
 					},
@@ -399,10 +436,12 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 					Repositories: []string{
 						"github.com/bar/foo",
 						"github.com/baz/bar",
@@ -435,10 +474,12 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 					Repositories: []string{
 						"github.com/bar/foo",
 						"github.com/baz/bar",
@@ -471,10 +512,12 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 					Repositories: []string{
 						"github.com/bar/foo",
 					},
@@ -530,10 +573,12 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "golang",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "golang",
+						Name: "foo/bar",
+					},
 					Repositories: []string{
 						"github.com/bar/foo",
 						"github.com/foo/baz",
@@ -545,7 +590,7 @@ func TestCycloneDXBOMPackagesFromBOM(t *testing.T) {
 	}
 	for n, tc := range testCases {
 		t.Run(n, func(t *testing.T) {
-			gotPackages, err := PackagesFromCycloneDXBOM(tc.bom)
+			gotPackages, err := PackageRepositoriesFromCycloneDXBOM(tc.bom)
 			if err != nil {
 				t.Fatalf("unexpected error getting packages from bom: %s", err)
 			}

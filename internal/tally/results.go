@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/cheggaaa/pb/v3"
-	"github.com/jetstack/tally/internal/bom"
 	"github.com/jetstack/tally/internal/scorecard"
 	"github.com/jetstack/tally/internal/types"
 	"golang.org/x/sync/errgroup"
@@ -18,7 +17,7 @@ import (
 const pbTemplate = `{{ string . "message" }} {{ bar . "[" "-" ">" "." "]"}} {{counters . }}`
 
 // Results finds scorecard scores for the provided packages
-func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgs ...bom.Package) ([]types.Result, error) {
+func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRepos ...*types.PackageRepositories) ([]types.Result, error) {
 	// If the writer is nil then just discard anything we write
 	if w == nil {
 		w = io.Discard
@@ -26,18 +25,15 @@ func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgs 
 
 	// Map repositories to packages
 	repoPkgs := map[string][]types.Package{}
-	for _, pkg := range pkgs {
+	for _, pkgRepo := range pkgRepos {
 		// We want to include packages without a repository in the
 		// results
-		repos := pkg.Repositories
+		repos := pkgRepo.Repositories
 		if len(repos) == 0 {
 			repos = []string{""}
 		}
 		for _, repo := range repos {
-			repoPkgs[repo] = append(repoPkgs[repo], types.Package{
-				Type: pkg.Type,
-				Name: pkg.Name,
-			})
+			repoPkgs[repo] = append(repoPkgs[repo], pkgRepo.Package)
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/anchore/syft/syft/formats/syftjson/model"
 	"github.com/anchore/syft/syft/pkg"
 	"github.com/google/go-cmp/cmp"
+	"github.com/jetstack/tally/internal/types"
 )
 
 func TestParseSyftBOM(t *testing.T) {
@@ -68,10 +69,10 @@ func TestParseSyftBOM(t *testing.T) {
 	}
 }
 
-func TestPackageFromSyftBOM(t *testing.T) {
+func TestPackageRepositoriesFromSyftBOM(t *testing.T) {
 	testCases := map[string]struct {
 		bom          *model.Document
-		wantPackages []Package
+		wantPackages []*types.PackageRepositories
 	}{
 		"an error should not be produced for an empty BOM": {
 			bom: &model.Document{},
@@ -110,10 +111,12 @@ func TestPackageFromSyftBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "maven",
-					Name: "org.hdrhistogram/HdrHistogram",
+					Package: types.Package{
+						Type: "maven",
+						Name: "org.hdrhistogram/HdrHistogram",
+					},
 				},
 			},
 		},
@@ -152,26 +155,36 @@ func TestPackageFromSyftBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "maven",
-					Name: "org.hdrhistogram/HdrHistogram",
+					Package: types.Package{
+						Type: "maven",
+						Name: "org.hdrhistogram/HdrHistogram",
+					},
 				},
 				{
-					Type: "golang",
-					Name: "sigs.k8s.io/release-utils",
+					Package: types.Package{
+						Type: "golang",
+						Name: "sigs.k8s.io/release-utils",
+					},
 				},
 				{
-					Type: "npm",
-					Name: "zwitch",
+					Package: types.Package{
+						Type: "npm",
+						Name: "zwitch",
+					},
 				},
 				{
-					Type: "cargo",
-					Name: "getrandom",
+					Package: types.Package{
+						Type: "cargo",
+						Name: "getrandom",
+					},
 				},
 				{
-					Type: "pypi",
-					Name: "zope.interface",
+					Package: types.Package{
+						Type: "pypi",
+						Name: "zope.interface",
+					},
 				},
 			},
 		},
@@ -274,53 +287,67 @@ func TestPackageFromSyftBOM(t *testing.T) {
 					},
 				},
 			},
-			wantPackages: []Package{
+			wantPackages: []*types.PackageRepositories{
 				{
-					Type: "pub",
-					Name: "foobar",
+					Package: types.Package{
+						Type: "pub",
+						Name: "foobar",
+					},
 					Repositories: []string{
 						"github.com/foo/bar",
 					},
 				},
 				{
-					Type: "gem",
-					Name: "foobar",
+					Package: types.Package{
+						Type: "gem",
+						Name: "foobar",
+					},
 					Repositories: []string{
 						"github.com/foo/bar",
 					},
 				},
 				{
-					Type: "composer",
-					Name: "foo/bar",
+					Package: types.Package{
+						Type: "composer",
+						Name: "foo/bar",
+					},
 					Repositories: []string{
 						"github.com/foo/bar",
 					},
 				},
 				{
-					Type: "npm",
-					Name: "foobar",
+					Package: types.Package{
+						Type: "npm",
+						Name: "foobar",
+					},
 					Repositories: []string{
 						"github.com/foo/bar",
 					},
 				},
 				{
-					Type: "npm",
-					Name: "foobar1",
+					Package: types.Package{
+						Type: "npm",
+						Name: "foobar1",
+					},
 					Repositories: []string{
 						"github.com/foo/bar1",
 					},
 				},
 				{
-					Type: "npm",
-					Name: "barfoo",
+					Package: types.Package{
+						Type: "npm",
+						Name: "barfoo",
+					},
 					Repositories: []string{
 						"github.com/bar/foo",
 						"github.com/foo/bar",
 					},
 				},
 				{
-					Type: "pypi",
-					Name: "foobar",
+					Package: types.Package{
+						Type: "pypi",
+						Name: "foobar",
+					},
 					Repositories: []string{
 						"github.com/foo/bar",
 					},
@@ -331,7 +358,7 @@ func TestPackageFromSyftBOM(t *testing.T) {
 	for n, tc := range testCases {
 		t.Run(n, func(t *testing.T) {
 
-			gotPackages, err := PackagesFromSyftBOM(tc.bom)
+			gotPackages, err := PackageRepositoriesFromSyftBOM(tc.bom)
 			if err != nil {
 				t.Fatalf("unexpected error getting packages from bom: %s", err)
 			}

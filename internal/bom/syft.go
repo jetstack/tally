@@ -7,6 +7,7 @@ import (
 	"github.com/anchore/syft/syft/formats/syftjson/model"
 	syft "github.com/anchore/syft/syft/pkg"
 	github_url "github.com/jetstack/tally/internal/github-url"
+	"github.com/jetstack/tally/internal/types"
 )
 
 // ParseSyftBOM parses a syft SBOM
@@ -23,34 +24,40 @@ func ParseSyftBOM(r io.Reader) (*model.Document, error) {
 	return doc, nil
 }
 
-// PackagesFromSyftBOM discovers packages in a Syft BOM
-func PackagesFromSyftBOM(doc *model.Document) ([]Package, error) {
-	var pkgs []Package
+// PackageRepositoriesFromSyftBOM discovers packages in a Syft BOM
+func PackageRepositoriesFromSyftBOM(doc *model.Document) ([]*types.PackageRepositories, error) {
+	var pkgRepos []*types.PackageRepositories
 	for _, a := range doc.Artifacts {
-		if a.PURL == "" {
-			continue
-		}
-
-		pkg, err := packageFromPurl(a.PURL)
+		pkgRepo, err := packageRepositoriesFromSyftPackage(a)
 		if err != nil {
 			return nil, err
 		}
-		if pkg == nil {
+		if pkgRepo == nil {
 			continue
 		}
 
-		repos := repositoriesFromSyftPackage(a)
-		for _, repo := range repos {
-			if contains(pkg.Repositories, repo) {
-				continue
-			}
-			pkg.Repositories = append(pkg.Repositories, repo)
-		}
-
-		pkgs = appendPackage(pkgs, *pkg)
+		pkgRepos = appendPackageRepositories(pkgRepos, pkgRepo)
 	}
 
-	return pkgs, nil
+	return pkgRepos, nil
+}
+
+func packageRepositoriesFromSyftPackage(pkg model.Package) (*types.PackageRepositories, error) {
+	if pkg.PURL == "" {
+		return nil, nil
+	}
+
+	pkgRepo, err := packageRepositoriesFromPurl(pkg.PURL)
+	if err != nil {
+		return nil, err
+	}
+	if pkgRepo == nil {
+		return nil, nil
+	}
+
+	pkgRepo.AddRepositories(repositoriesFromSyftPackage(pkg)...)
+
+	return pkgRepo, nil
 }
 
 func repositoriesFromSyftPackage(pkg model.Package) []string {
@@ -108,25 +115,16 @@ func repositoriesFromSyftPackage(pkg model.Package) []string {
 	return repos
 }
 
-func appendPackage(pkgs []Package, pkg Package) []Package {
-	for i, p := range pkgs {
-		if p.Type != pkg.Type {
-			continue
-		}
-		if p.Name != pkg.Name {
+func appendPackageRepositories(pkgRepos []*types.PackageRepositories, pkgRepo *types.PackageRepositories) []*types.PackageRepositories {
+	for _, p := range pkgRepos {
+		if !p.Equals(pkgRepo.Package) {
 			continue
 		}
 
-		for _, repo := range pkg.Repositories {
-			if contains(p.Repositories, repo) {
-				continue
-			}
+		p.AddRepositories(pkgRepo.Repositories...)
 
-			pkgs[i].Repositories = append(pkgs[i].Repositories, repo)
-		}
-
-		return pkgs
+		return pkgRepos
 	}
 
-	return append(pkgs, pkg)
+	return append(pkgRepos, pkgRepo)
 }

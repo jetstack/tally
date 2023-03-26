@@ -6,6 +6,7 @@ import (
 
 	"github.com/CycloneDX/cyclonedx-go"
 	github_url "github.com/jetstack/tally/internal/github-url"
+	"github.com/jetstack/tally/internal/types"
 )
 
 // ParseCycloneDXBOM parses a cyclonedx BOM in the specified format
@@ -18,37 +19,21 @@ func ParseCycloneDXBOM(r io.Reader, format cyclonedx.BOMFileFormat) (*cyclonedx.
 	return bom, nil
 }
 
-// PackagesFromCycloneDXBOM extracts packages from a cyclonedx BOM
-func PackagesFromCycloneDXBOM(bom *cyclonedx.BOM) ([]Package, error) {
-	var pkgs []Package
+// PackageRepositoriesFromCycloneDXBOM extracts packages from a cyclonedx BOM
+func PackageRepositoriesFromCycloneDXBOM(bom *cyclonedx.BOM) ([]*types.PackageRepositories, error) {
+	var pkgRepos []*types.PackageRepositories
 	if err := foreachComponentIn(
 		bom,
 		func(component cyclonedx.Component) error {
-			pkg, err := packageFromCycloneDXComponent(component)
+			pkgRepo, err := packageRepositoriesFromCycloneDXComponent(component)
 			if err != nil {
 				return err
 			}
-			if pkg == nil {
-				return nil
-			}
-			for i, p := range pkgs {
-				if p.Name != pkg.Name {
-					continue
-				}
-				if p.Type != pkg.Type {
-					continue
-				}
-				for _, repo := range pkg.Repositories {
-					if contains(p.Repositories, repo) {
-						continue
-					}
-					pkgs[i].Repositories = append(pkgs[i].Repositories, repo)
-				}
-
+			if pkgRepo == nil {
 				return nil
 			}
 
-			pkgs = append(pkgs, *pkg)
+			pkgRepos = appendPackageRepositories(pkgRepos, pkgRepo)
 
 			return nil
 
@@ -57,19 +42,19 @@ func PackagesFromCycloneDXBOM(bom *cyclonedx.BOM) ([]Package, error) {
 		return nil, fmt.Errorf("finding packages in BOM: %w", err)
 	}
 
-	return pkgs, nil
+	return pkgRepos, nil
 }
 
-func packageFromCycloneDXComponent(component cyclonedx.Component) (*Package, error) {
+func packageRepositoriesFromCycloneDXComponent(component cyclonedx.Component) (*types.PackageRepositories, error) {
 	if component.PackageURL == "" {
 		return nil, nil
 	}
-	pkg, err := packageFromPurl(component.PackageURL)
+	pkgRepo, err := packageRepositoriesFromPurl(component.PackageURL)
 	if err != nil {
 		return nil, err
 	}
 	if component.ExternalReferences == nil {
-		return pkg, nil
+		return pkgRepo, nil
 	}
 	for _, ref := range *component.ExternalReferences {
 		switch ref.Type {
@@ -78,13 +63,11 @@ func packageFromCycloneDXComponent(component cyclonedx.Component) (*Package, err
 			if err != nil {
 				continue
 			}
-			if !contains(pkg.Repositories, repo) {
-				pkg.Repositories = append(pkg.Repositories, repo)
-			}
+			pkgRepo.AddRepositories(repo)
 		}
 	}
 
-	return pkg, nil
+	return pkgRepo, nil
 }
 
 func foreachComponentIn(bom *cyclonedx.BOM, fn func(component cyclonedx.Component) error) error {
@@ -112,14 +95,4 @@ func walkCycloneDXComponents(components []cyclonedx.Component, fn func(cyclonedx
 	}
 
 	return nil
-}
-
-func contains(vals []string, val string) bool {
-	for _, v := range vals {
-		if v == val {
-			return true
-		}
-	}
-
-	return false
 }
