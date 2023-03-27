@@ -9,7 +9,7 @@ import (
 
 // Output writes output for tally
 type Output interface {
-	WriteResults(io.Writer, []types.Result) error
+	WriteReport(io.Writer, types.Report) error
 }
 
 // NewOutput returns a new output, configured by the provided options
@@ -31,42 +31,42 @@ type output struct {
 	writer writer
 }
 
-// WriteResults writes the provided results to the given io.Writer in the
+// WriteReport writes the report to the given io.Writer in the
 // configured output format
-func (o *output) WriteResults(w io.Writer, results []types.Result) error {
+func (o *output) WriteReport(w io.Writer, report types.Report) error {
 	// Unless -a is configured, ignore packages without a score
 	if !o.all {
 		r := []types.Result{}
-		for _, result := range results {
-			if result.ScorecardResult == nil {
+		for _, result := range report.Results {
+			if result.Result == nil {
 				continue
 			}
 			r = append(r, result)
 		}
-		results = r
+		report.Results = r
 	}
 
-	// Sort the packages by score in the output
-	sort.Slice(results, func(i, j int) bool {
+	// Sort the results by score
+	sort.Slice(report.Results, func(i, j int) bool {
 		var (
 			is float64
 			js float64
 		)
-		if results[i].ScorecardResult != nil {
-			is = results[i].ScorecardResult.Score
+		if report.Results[i].Result != nil {
+			is = report.Results[i].Result.Score
 		}
 
-		if results[j].ScorecardResult != nil {
-			js = results[j].ScorecardResult.Score
+		if report.Results[j].Result != nil {
+			js = report.Results[j].Result.Score
 		}
 
 		// If the scores are equal, then sort by repository.name
 		if is == js {
-			return results[i].Repository.Name > results[j].Repository.Name
+			return report.Results[i].Repository.Name > report.Results[j].Repository.Name
 		}
 
 		return is > js
 	})
 
-	return o.writer(w, results)
+	return o.writer(w, report)
 }

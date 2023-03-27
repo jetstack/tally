@@ -16,8 +16,8 @@ import (
 
 const pbTemplate = `{{ string . "message" }} {{ bar . "[" "-" ">" "." "]"}} {{counters . }}`
 
-// Results finds scorecard scores for the provided packages
-func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRepos ...*types.PackageRepositories) ([]types.Result, error) {
+// Run finds scorecard scores for the provided packages
+func Run(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRepos ...*types.PackageRepositories) (*types.Report, error) {
 	// If the writer is nil then just discard anything we write
 	if w == nil {
 		w = io.Discard
@@ -30,7 +30,11 @@ func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRe
 		// results
 		repos := pkgRepo.Repositories
 		if len(repos) == 0 {
-			repos = []types.Repository{types.Repository{Name: ""}}
+			repos = []types.Repository{
+				{
+					Name: "",
+				},
+			}
 		}
 		for _, repo := range repos {
 			repoPkgs[repo.Name] = append(repoPkgs[repo.Name], pkgRepo.Package)
@@ -58,7 +62,7 @@ func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRe
 		g.SetLimit(runtime.NumCPU())
 		mux := sync.RWMutex{}
 		for i, result := range results {
-			if result.ScorecardResult != nil || result.Repository.Name == "" {
+			if result.Result != nil || result.Repository.Name == "" {
 				continue
 			}
 			i, result := i, result
@@ -82,7 +86,7 @@ func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRe
 					return nil
 				}
 
-				results[i].ScorecardResult = scorecardResult
+				results[i].Result = scorecardResult
 
 				mux.Lock()
 				bar.Increment()
@@ -98,5 +102,7 @@ func Results(ctx context.Context, w io.Writer, clients []scorecard.Client, pkgRe
 
 	bar.Set("message", "DONE")
 
-	return results, nil
+	return &types.Report{
+		Results: results,
+	}, nil
 }

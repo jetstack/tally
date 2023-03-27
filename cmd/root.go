@@ -104,21 +104,21 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		// Get results
-		results, err := tally.Results(ctx, os.Stderr, scorecardClients, pkgRepos...)
+		// Run tally
+		report, err := tally.Run(ctx, os.Stderr, scorecardClients, pkgRepos...)
 		if err != nil {
 			return fmt.Errorf("getting results: %w", err)
 		}
 
-		// Write results to output
-		if err := out.WriteResults(os.Stdout, results); err != nil {
+		// Write report to output
+		if err := out.WriteReport(os.Stdout, *report); err != nil {
 			os.Exit(1)
 		}
 
 		// Exit 1 if there is a score <= o.FailOn
 		if ro.FailOn.Value != nil {
-			for _, result := range results {
-				if result.ScorecardResult == nil || result.ScorecardResult.Score > *ro.FailOn.Value {
+			for _, result := range report.Results {
+				if result.Result == nil || result.Result.Score > *ro.FailOn.Value {
 					continue
 				}
 				fmt.Fprintf(os.Stderr, "Error: found scores <= to %0.2f\n", *ro.FailOn.Value)

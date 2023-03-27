@@ -25,7 +25,7 @@ const (
 	// the repositories and their scores.
 	FormatWide Format = "wide"
 
-	// OutputFormatJSON prints the list of packages in JSON format.
+	// OutputFormatJSON prints the full report in JSON format.
 	FormatJSON Format = "json"
 )
 
@@ -36,7 +36,7 @@ var Formats = []Format{
 	FormatJSON,
 }
 
-type writer func(io.Writer, []types.Result) error
+type writer func(io.Writer, types.Report) error
 
 var writerMap = map[Format]writer{
 	FormatShort: writeShort,
@@ -44,21 +44,21 @@ var writerMap = map[Format]writer{
 	FormatJSON:  writeJSON,
 }
 
-func writeShort(w io.Writer, results []types.Result) error {
+func writeShort(w io.Writer, report types.Report) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 	defer tw.Flush()
 	fmt.Fprintf(tw, "REPOSITORY\tSCORE\n")
 
 	printed := map[string]struct{}{}
-	for _, result := range results {
+	for _, result := range report.Results {
 		if result.Repository.Name == "" {
 			continue
 		}
 		if _, ok := printed[result.Repository.Name]; ok {
 			continue
 		}
-		if result.ScorecardResult != nil {
-			fmt.Fprintf(tw, "%s\t%.1f\n", result.Repository.Name, result.ScorecardResult.Score)
+		if result.Result != nil {
+			fmt.Fprintf(tw, "%s\t%.1f\n", result.Repository.Name, result.Result.Score)
 		} else {
 			fmt.Fprintf(tw, "%s\t%s\n", result.Repository.Name, " ")
 		}
@@ -68,15 +68,15 @@ func writeShort(w io.Writer, results []types.Result) error {
 	return nil
 }
 
-func writeWide(w io.Writer, results []types.Result) error {
+func writeWide(w io.Writer, report types.Report) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
 	defer tw.Flush()
 	fmt.Fprintf(tw, "TYPE\tPACKAGE\tREPOSITORY\tSCORE\n")
 
-	for _, result := range results {
+	for _, result := range report.Results {
 		for _, pkg := range result.Packages {
-			if result.ScorecardResult != nil {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.Type, pkg.Name, result.Repository.Name, result.ScorecardResult.Score)
+			if result.Result != nil {
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%.1f\n", pkg.Type, pkg.Name, result.Repository.Name, result.Result.Score)
 			} else {
 				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", pkg.Type, pkg.Name, result.Repository.Name, " ")
 			}
@@ -86,8 +86,8 @@ func writeWide(w io.Writer, results []types.Result) error {
 	return nil
 }
 
-func writeJSON(w io.Writer, results []types.Result) error {
-	data, err := json.Marshal(results)
+func writeJSON(w io.Writer, report types.Report) error {
+	data, err := json.Marshal(report)
 	if err != nil {
 		return nil
 	}

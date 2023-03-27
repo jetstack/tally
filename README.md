@@ -58,11 +58,11 @@ scores from the API with `--api=false`.
 
 ### Cache
 
-To speed up subsequent runs, `tally` will cache scores to a local database. You
-can disable the cache with `--cache=false`.
+To speed up subsequent runs, `tally` will cache scorecard results to a local
+database. You can disable the cache with `--cache=false`.
 
-By default, scores are cached for 7 days. This can be changed with the
-`--cache-duration` flag:
+By default, `tally` will ignore results that were cached more than 7 days ago.
+This window can be changed with the `--cache-duration` flag:
 
 ```
 tally --cache-duration=20m bom.json
@@ -105,37 +105,39 @@ TYPE   PACKAGE                     REPOSITORY                            SCORE
 golang cloud.google.com/go/compute github.com/googleapis/google-cloud-go 9.3
 ```
 
-The `json` output will print the full output in JSON format:
+The `json` output will print the full report in JSON format:
 
 ```
 $ tally -o json bom.json | jq -r .
-[
-  {
-    "repository": "github.com/googleapis/google-http-java-client",
-    "packages" : [
-      {
-        "type": "maven",
-        "name": "com.google.http-client/google-http-client-jackson2"
+{
+  "results": [
+    {
+      "repository": "github.com/googleapis/google-http-java-client",
+      "packages" : [
+        {
+          "type": "maven",
+          "name": "com.google.http-client/google-http-client-jackson2"
+        }
+      ],
+      "result": {
+        "date": "2023-03-04",
+        "repo": {
+          "name": "github.com/googleapis/google-http-java-client",
+          "commit": "4e889b702b8bbfb082b7a3234569dc173c1c286d"
+        },
+        "scorecard": {
+          "version": "v4.8.0",
+          "commit": "c40859202d739b31fd060ac5b30d17326cd74275"
+        },
+        "score": 7,
+        "checks": [
+          ...
+        ]
       }
-    ],
-    "scorecard_result": {
-      "date": "2023-03-04",
-      "repo": {
-        "name": "github.com/googleapis/google-http-java-client",
-        "commit": "4e889b702b8bbfb082b7a3234569dc173c1c286d"
-      },
-      "scorecard": {
-        "version": "v4.8.0",
-        "commit": "c40859202d739b31fd060ac5b30d17326cd74275"
-      },
-      "score": 7,
-      "checks": [
-        ...
-      ]
-    }
-  },
-  ...
-]
+    },
+    ...
+  ]
+}
 ```
 
 ### Print all
