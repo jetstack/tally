@@ -144,7 +144,8 @@ $ tally -o json bom.json | jq -r .
 
 Not all packages will have a Scorecard score.
 
-By default, `tally` will remove results without a score from the output.
+By default, `tally` will remove results without a score from the output when
+using `-o short` or `-o wide`.
 
 You can include all results, regardless of whether they have a score or not, by
 specifying the `-a/--all` flag.

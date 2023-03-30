@@ -42,7 +42,7 @@ var rootCmd = &cobra.Command{
 
 		// Configure the output writer
 		out, err := output.NewOutput(
-			output.WithFormat(output.Format(ro.Output)),
+			output.Format(ro.Output),
 			output.WithAll(ro.All),
 		)
 		if err != nil {
