@@ -41,6 +41,7 @@ signs:
     certificate: "${artifact}.crt"
     args:
       - "sign-blob"
+      - "--yes"
       - "--output-signature"
       - "${signature}"
       - "--output-certificate"
