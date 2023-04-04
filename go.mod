@@ -5,7 +5,7 @@ go 1.20
 replace github.com/spdx/tools-golang => github.com/spdx/tools-golang v0.4.0
 
 require (
-	github.com/CycloneDX/cyclonedx-go v0.7.1-0.20221222100750-41a1ac565cce
+	github.com/CycloneDX/cyclonedx-go v0.7.1
 	github.com/anchore/syft v0.76.0
 	github.com/cheggaaa/pb/v3 v3.1.2
 	github.com/google/go-cmp v0.5.9

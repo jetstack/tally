@@ -471,8 +471,8 @@ github.com/BurntSushi/toml v0.4.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbi
 github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak=
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/CycloneDX/cyclonedx-go v0.7.1-0.20221222100750-41a1ac565cce h1:o5r3msApzvtE5LhcMkxWaKernD/PK0HpMccu7ywBj5Q=
-github.com/CycloneDX/cyclonedx-go v0.7.1-0.20221222100750-41a1ac565cce/go.mod h1:XURd0m8zvnLE5aIRqg6JOVRl7qZ/pWBtuFa9EHjQwFc=
+github.com/CycloneDX/cyclonedx-go v0.7.1 h1:5w1SxjGm9MTMNTuRbEPyw21ObdbaagTWF/KfF0qHTRE=
+github.com/CycloneDX/cyclonedx-go v0.7.1/go.mod h1:N/nrdWQI2SIjaACyyDs/u7+ddCkyl/zkNs8xFsHF2Ps=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/GoogleCloudPlatform/cloudsql-proxy v1.33.2/go.mod h1:uqoR4sJc63p7ugW8a/vsEspOsNuehbi7ptS2CHCyOnY=
 github.com/HdrHistogram/hdrhistogram-go v1.1.0/go.mod h1:yDgFjdqOqDEKOvasDdhWNXYg9BVp4O+o5f6V/ehm6Oo=
