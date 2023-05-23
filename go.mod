@@ -12,7 +12,7 @@ require (
 	github.com/ossf/scorecard-webapp v1.0.4
 	github.com/ossf/scorecard/v4 v4.10.5
 	github.com/package-url/packageurl-go v0.1.1-0.20220428063043-89078438f170
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.2
 	github.com/spf13/cobra v1.7.0
 	golang.org/x/sync v0.2.0
 	modernc.org/sqlite v1.22.1
