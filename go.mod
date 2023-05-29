@@ -6,7 +6,7 @@ replace github.com/spdx/tools-golang => github.com/spdx/tools-golang v0.4.0
 
 require (
 	github.com/CycloneDX/cyclonedx-go v0.7.1
-	github.com/anchore/syft v0.81.0
+	github.com/anchore/syft v0.82.0
 	github.com/cheggaaa/pb/v3 v3.1.2
 	github.com/google/go-cmp v0.5.9
 	github.com/ossf/scorecard-webapp v1.0.4
@@ -33,7 +33,7 @@ require (
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/anchore/go-logger v0.0.0-20220728155337-03b66a5207d8 // indirect
 	github.com/anchore/packageurl-go v0.1.1-0.20230104203445-02e0a6721501 // indirect
-	github.com/anchore/stereoscope v0.0.0-20230508133058-5543439b749f // indirect
+	github.com/anchore/stereoscope v0.0.0-20230522170632-e14bc4437b2e // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/becheran/wildmatch-go v1.0.0 // indirect
@@ -47,8 +47,8 @@ require (
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/containerd/typeurl v1.0.2 // indirect
 	github.com/docker/cli v23.0.5+incompatible // indirect
-	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/docker/docker v24.0.0+incompatible // indirect
+	github.com/docker/distribution v2.8.2+incompatible // indirect
+	github.com/docker/docker v24.0.1+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
