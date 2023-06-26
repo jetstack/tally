@@ -6,7 +6,7 @@ replace github.com/spdx/tools-golang => github.com/spdx/tools-golang v0.4.0
 
 require (
 	github.com/CycloneDX/cyclonedx-go v0.7.1
-	github.com/anchore/syft v0.83.1
+	github.com/anchore/syft v0.84.0
 	github.com/cheggaaa/pb/v3 v3.1.2
 	github.com/google/go-cmp v0.5.9
 	github.com/ossf/scorecard-webapp v1.0.4
@@ -147,7 +147,7 @@ require (
 	gocloud.dev v0.29.0 // indirect
 	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
-	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/net v0.11.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sys v0.9.0 // indirect
