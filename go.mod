@@ -6,7 +6,7 @@ replace github.com/spdx/tools-golang => github.com/spdx/tools-golang v0.4.0
 
 require (
 	github.com/CycloneDX/cyclonedx-go v0.7.1
-	github.com/anchore/syft v0.83.1
+	github.com/anchore/syft v0.84.1
 	github.com/cheggaaa/pb/v3 v3.1.2
 	github.com/google/go-cmp v0.5.9
 	github.com/ossf/scorecard-webapp v1.0.4
@@ -33,7 +33,7 @@ require (
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/anchore/go-logger v0.0.0-20220728155337-03b66a5207d8 // indirect
 	github.com/anchore/packageurl-go v0.1.1-0.20230104203445-02e0a6721501 // indirect
-	github.com/anchore/stereoscope v0.0.0-20230609190519-5b5049bf4d3a // indirect
+	github.com/anchore/stereoscope v0.0.0-20230627195312-cd49355d934e // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/becheran/wildmatch-go v1.0.0 // indirect
@@ -147,7 +147,7 @@ require (
 	gocloud.dev v0.29.0 // indirect
 	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
-	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/net v0.11.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sys v0.9.0 // indirect
