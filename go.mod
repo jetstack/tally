@@ -7,7 +7,7 @@ replace github.com/spdx/tools-golang => github.com/spdx/tools-golang v0.4.0
 require (
 	github.com/CycloneDX/cyclonedx-go v0.7.1
 	github.com/anchore/syft v0.83.1
-	github.com/cheggaaa/pb/v3 v3.1.2
+	github.com/cheggaaa/pb/v3 v3.1.4
 	github.com/google/go-cmp v0.5.9
 	github.com/ossf/scorecard-webapp v1.0.5
 	github.com/ossf/scorecard/v4 v4.10.5
