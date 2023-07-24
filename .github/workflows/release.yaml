@@ -17,7 +17,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@dd6b2e2b610a11fd73dd187a43d57cc1394e35f9
+        uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06
 
       - name: Install Go
         uses: actions/setup-go@v4
@@ -56,7 +56,7 @@ jobs:
         uses: imjasonh/setup-ko@ace48d793556083a76f1e3e6068850c1f4a369aa
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@dd6b2e2b610a11fd73dd187a43d57cc1394e35f9
+        uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06
 
       - name: Login to ghcr.io
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc
